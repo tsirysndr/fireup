@@ -1,0 +1,156 @@
+use anyhow::{anyhow, Context, Result};
+use owo_colors::OwoColorize;
+use regex::Regex;
+use std::fs;
+use std::path::Path;
+
+use crate::command::{run_command, run_command_with_stdout_inherit};
+
+pub fn download_files(arch: &str) -> Result<(String, String, String)> {
+    // Get latest version
+    let output = run_command(
+        "curl",
+        &[
+            "-fsSLI",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{url_effective}",
+            "https://github.com/firecracker-microvm/firecracker/releases/latest",
+        ],
+        false,
+    )?;
+    let url = String::from_utf8_lossy(&output.stdout);
+    let version = url
+        .split('/')
+        .last()
+        .ok_or_else(|| anyhow!("Failed to parse version from URL"))?
+        .trim();
+    let ci_version = version
+        .rsplitn(2, '.')
+        .last()
+        .ok_or_else(|| anyhow!("Failed to parse CI version"))?;
+
+    // Fetch and download kernel
+    let kernel_prefix = format!("firecracker-ci/{}/{}/vmlinux-", ci_version, arch);
+    let latest_kernel_key =
+        get_latest_key("http://spec.ccfc.min.s3.amazonaws.com/", &kernel_prefix)?;
+    let kernel_file = Path::new(&latest_kernel_key)
+        .file_name()
+        .ok_or_else(|| anyhow!("Failed to get kernel filename"))?
+        .to_string_lossy()
+        .to_string();
+
+    let kernel_abs = fs::canonicalize(&kernel_file)
+        .unwrap_or_else(|_| Path::new(&kernel_file).to_path_buf())
+        .display()
+        .to_string();
+    download_file(
+        &format!(
+            "https://s3.amazonaws.com/spec.ccfc.min/{}",
+            latest_kernel_key
+        ),
+        &kernel_abs,
+    )?;
+
+    let ubuntu_prefix = format!("firecracker-ci/{}/{}/ubuntu-", ci_version, arch);
+    let latest_ubuntu_key =
+        get_latest_key("http://spec.ccfc.min.s3.amazonaws.com/", &ubuntu_prefix)?;
+    let ubuntu_version = Path::new(&latest_ubuntu_key)
+        .file_name()
+        .ok_or_else(|| anyhow!("Failed to get ubuntu filename"))?
+        .to_string_lossy()
+        .to_string();
+    let re_version = Regex::new(r"^\d+\.\d+$").with_context(|| "Failed to create version regex")?;
+    let ubuntu_version = re_version
+        .find(&ubuntu_version)
+        .map(|m| m.as_str().to_string())
+        .unwrap_or_else(|| {
+            Path::new(&latest_ubuntu_key)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .strip_prefix("ubuntu-")
+                .unwrap()
+                .strip_suffix(".squashfs")
+                .unwrap()
+                .to_string()
+        });
+    let ubuntu_file = format!("ubuntu-{}.squashfs.upstream", ubuntu_version);
+
+    let ubuntu_abs = fs::canonicalize(&ubuntu_file)
+        .unwrap_or_else(|_| Path::new(&ubuntu_file).to_path_buf())
+        .display()
+        .to_string();
+    download_file(
+        &format!(
+            "https://s3.amazonaws.com/spec.ccfc.min/{}",
+            latest_ubuntu_key
+        ),
+        &ubuntu_abs,
+    )?;
+
+    Ok((kernel_abs, ubuntu_abs, ubuntu_version))
+}
+
+fn get_latest_key(url: &str, prefix: &str) -> Result<String> {
+    let output = run_command(
+        "curl",
+        &["-s", &format!("{}?prefix={}&list-type=2", url, prefix)],
+        false,
+    )?;
+    let xml_str = String::from_utf8_lossy(&output.stdout);
+    // Match vmlinux-X.Y.Z or ubuntu-X.Y.squashfs
+    let re = Regex::new(r"<Key>(firecracker-ci/[^<]+/[^<]+/(?:vmlinux-\d+\.\d+\.\d{1,3}|ubuntu-\d+\.\d+\.squashfs))</Key>")
+        .with_context(|| "Failed to create regex")?;
+
+    let mut keys: Vec<String> = re
+        .captures_iter(&xml_str)
+        .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+        .collect();
+
+    if keys.is_empty() {
+        return Err(anyhow!("No matching keys found for prefix: {}", prefix));
+    }
+
+    // Sort by version number using version sorting similar to sort -V
+    keys.sort_by(|a, b| {
+        let a_version = Path::new(a)
+            .file_name()
+            .and_then(|f| f.to_str())
+            .and_then(|f| f.split('-').last())
+            .and_then(|v| v.strip_suffix(".squashfs"))
+            .unwrap_or("")
+            .split('.')
+            .map(|n| n.parse::<u32>().unwrap_or(0))
+            .collect::<Vec<u32>>();
+        let b_version = Path::new(b)
+            .file_name()
+            .and_then(|f| f.to_str())
+            .and_then(|f| f.split('-').last())
+            .and_then(|v| v.strip_suffix(".squashfs"))
+            .unwrap_or("")
+            .split('.')
+            .map(|n| n.parse::<u32>().unwrap_or(0))
+            .collect::<Vec<u32>>();
+
+        a_version.cmp(&b_version)
+    });
+
+    keys.last()
+        .ok_or_else(|| anyhow!("No matching keys found after sorting"))
+        .cloned()
+}
+
+fn download_file(url: &str, output: &str) -> Result<()> {
+    if Path::new(output).exists() {
+        println!(
+            "File already exists: {}, skipping download.",
+            output.bright_green()
+        );
+        return Ok(());
+    }
+    println!("Downloading: {}", output.bright_green());
+    run_command_with_stdout_inherit("wget", &["-O", output, url], false)?;
+    Ok(())
+}

@@ -1,0 +1,12 @@
+[workspace]
+default-members = ["crates/*"]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+authors = ["Tsiry Sandratraina <tsiry.sndr@rocksky.app"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/tsirysndr/fireup"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
