@@ -15,6 +15,14 @@
 - **Cross-Architecture Support**: Supports x86_64 and aarch64 with automatic detection.
 - **Robust Error Handling**: Clear error messages using anyhow for easy debugging.
 
+## Installation
+
+You can install `fireup` using bash:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/tsirysndr/fireup/main/install.sh | bash
+```
+
 ## Subcommands
 - `up`: Starts the Firecracker microVM, preparing assets and configuring the network if needed.
 - `down`: Stops the running Firecracker microVM.

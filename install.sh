@@ -104,3 +104,43 @@ $SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/seccompiler-bin /usr/loca
 
 $SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/snapshot-editor /usr/local/bin/snapshot-editor
 
+detect_os
+
+DOWNLOAD_URL=$(curl -sSL "$RELEASE_URL" | grep -o "browser_download_url.*fireup-.*$ASSET_NAME\"" | cut -d ' ' -f 2)
+
+DOWNLOAD_URL=`echo $DOWNLOAD_URL | tr -d '\"'`
+
+ASSET_NAME=$(basename $DOWNLOAD_URL)
+
+curl -SL $DOWNLOAD_URL -o /tmp/$ASSET_NAME
+
+tar -xzf /tmp/$ASSET_NAME -C /tmp
+
+chmod a+x /tmp/fireup
+
+$SUDO cp /tmp/fireup /usr/local/bin/fireup
+rm -rf /tmp/fireup
+
+cat <<EOF
+${ORANGE}
+     _______           __  __
+    / ____(_)_______  / / / /___
+   / /_  / / ___/ _ \/ / / / __ \\
+  / __/ / / /  /  __/ /_/ / /_/ /
+ /_/   /_/_/   \___/\____/ .___/
+                        /_/
+${NO_COLOR}
+Welcome to Fireup!
+
+${GREEN}https://github.com/tsirysndr/fireup${NO_COLOR}
+
+Please file an issue if you encounter any problems!
+
+===============================================================================
+
+Installation completed! 🎉
+
+You can now run the following command to start using Fireup:
+${CYAN}fireup${NO_COLOR}
+
+EOF
