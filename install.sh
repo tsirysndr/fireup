@@ -106,6 +106,8 @@ $SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/snapshot-editor /usr/loca
 
 detect_os
 
+RELEASE_URL="https://api.github.com/repos/tsirysndr/fireup/releases/latest"
+
 DOWNLOAD_URL=$(curl -sSL "$RELEASE_URL" | grep -o "browser_download_url.*fireup-.*$ASSET_NAME\"" | cut -d ' ' -f 2)
 
 DOWNLOAD_URL=`echo $DOWNLOAD_URL | tr -d '\"'`
@@ -114,7 +116,7 @@ ASSET_NAME=$(basename $DOWNLOAD_URL)
 
 curl -SL $DOWNLOAD_URL -o /tmp/$ASSET_NAME
 
-tar -xzf /tmp/$ASSET_NAME -C /tmp
+tar -xvf /tmp/$ASSET_NAME -C /tmp
 
 chmod a+x /tmp/fireup
 
