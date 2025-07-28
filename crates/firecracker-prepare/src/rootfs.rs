@@ -5,7 +5,7 @@ use crate::command::run_command;
 pub fn extract_squashfs(squashfs_file: &str, output_dir: &str) -> Result<()> {
     run_command("rm", &["-rf", output_dir], true)?;
     println!("Extracting rootfs...");
-    run_command("unsquashfs", &[squashfs_file], false)?;
+    run_command("unsquashfs", &["-d", output_dir, squashfs_file], false)?;
     Ok(())
 }
 

@@ -1,12 +1,19 @@
 use anyhow::{anyhow, Context, Result};
 use std::process::{Command, Output, Stdio};
 
-pub fn run_command(command: &str, args: &[&str]) -> Result<Output> {
+pub fn run_command(command: &str, args: &[&str], with_stdin: bool) -> Result<Output> {
     let mut cmd = Command::new(command);
+
+    match with_stdin {
+        true => cmd
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit()),
+        false => cmd.stderr(Stdio::piped()),
+    };
 
     let output = cmd
         .args(args)
-        .stderr(Stdio::piped())
         .output()
         .with_context(|| format!("Failed to execute {}", command))?;
 

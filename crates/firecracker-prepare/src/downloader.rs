@@ -1,13 +1,13 @@
 use anyhow::{anyhow, Context, Result};
 use owo_colors::OwoColorize;
 use regex::Regex;
-use std::fs;
 use std::path::Path;
 
 use crate::command::{run_command, run_command_with_stdout_inherit};
 
 pub fn download_files(arch: &str) -> Result<(String, String, String)> {
-    // Get latest version
+    let app_dir =
+        crate::config::get_config_dir().with_context(|| "Failed to get configuration directory")?;
     let output = run_command(
         "curl",
         &[
@@ -31,26 +31,21 @@ pub fn download_files(arch: &str) -> Result<(String, String, String)> {
         .last()
         .ok_or_else(|| anyhow!("Failed to parse CI version"))?;
 
-    // Fetch and download kernel
     let kernel_prefix = format!("firecracker-ci/{}/{}/vmlinux-", ci_version, arch);
     let latest_kernel_key =
         get_latest_key("http://spec.ccfc.min.s3.amazonaws.com/", &kernel_prefix)?;
-    let kernel_file = Path::new(&latest_kernel_key)
-        .file_name()
-        .ok_or_else(|| anyhow!("Failed to get kernel filename"))?
-        .to_string_lossy()
-        .to_string();
+    let kernel_file = format!(
+        "{}/{}",
+        app_dir,
+        latest_kernel_key.split('/').last().unwrap()
+    );
 
-    let kernel_abs = fs::canonicalize(&kernel_file)
-        .unwrap_or_else(|_| Path::new(&kernel_file).to_path_buf())
-        .display()
-        .to_string();
     download_file(
         &format!(
             "https://s3.amazonaws.com/spec.ccfc.min/{}",
             latest_kernel_key
         ),
-        &kernel_abs,
+        &kernel_file,
     )?;
 
     let ubuntu_prefix = format!("firecracker-ci/{}/{}/ubuntu-", ci_version, arch);
@@ -76,21 +71,16 @@ pub fn download_files(arch: &str) -> Result<(String, String, String)> {
                 .unwrap()
                 .to_string()
         });
-    let ubuntu_file = format!("ubuntu-{}.squashfs.upstream", ubuntu_version);
-
-    let ubuntu_abs = fs::canonicalize(&ubuntu_file)
-        .unwrap_or_else(|_| Path::new(&ubuntu_file).to_path_buf())
-        .display()
-        .to_string();
+    let ubuntu_file = format!("{}/ubuntu-{}.squashfs.upstream", app_dir, ubuntu_version);
     download_file(
         &format!(
             "https://s3.amazonaws.com/spec.ccfc.min/{}",
             latest_ubuntu_key
         ),
-        &ubuntu_abs,
+        &ubuntu_file,
     )?;
 
-    Ok((kernel_abs, ubuntu_abs, ubuntu_version))
+    Ok((kernel_file, ubuntu_file, ubuntu_version))
 }
 
 fn get_latest_key(url: &str, prefix: &str) -> Result<String> {

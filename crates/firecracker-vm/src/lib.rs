@@ -2,20 +2,23 @@ use anyhow::{anyhow, Context, Result};
 use owo_colors::OwoColorize;
 use std::fs;
 
-use crate::constants::GUEST_IP;
+use crate::config::get_config_dir;
 
 mod command;
+mod config;
 mod constants;
 mod firecracker;
 mod guest;
 mod network;
 
 pub fn setup() -> Result<()> {
-    let logfile = format!("{}/firecracker.log", std::env::current_dir()?.display());
+    let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
+
+    let logfile = format!("{}/firecracker.log", app_dir);
     fs::File::create(&logfile)
         .with_context(|| format!("Failed to create log file: {}", logfile))?;
 
-    let kernel = glob::glob("vmlinux*")
+    let kernel = glob::glob(format!("{}/vmlinux*", app_dir).as_str())
         .with_context(|| "Failed to glob kernel files")?
         .last()
         .ok_or_else(|| anyhow!("No kernel file found"))?
@@ -30,7 +33,7 @@ pub fn setup() -> Result<()> {
         .display()
         .to_string();
 
-    let rootfs = glob::glob("*.ext4")
+    let rootfs = glob::glob(format!("{}/*.ext4", app_dir).as_str())
         .with_context(|| "Failed to glob rootfs files")?
         .last()
         .ok_or_else(|| anyhow!("No rootfs file found"))?
@@ -45,7 +48,7 @@ pub fn setup() -> Result<()> {
         .display()
         .to_string();
 
-    let key_name = glob::glob("*.id_rsa")
+    let key_name = glob::glob(format!("{}/*.id_rsa", app_dir).as_str())
         .with_context(|| "Failed to glob ssh key files")?
         .last()
         .ok_or_else(|| anyhow!("No SSH key file found"))?
@@ -65,19 +68,10 @@ pub fn setup() -> Result<()> {
     firecracker::configure(&logfile, &kernel, &rootfs, &arch)?;
     guest::configure_guest_network(&key_name)?;
 
-    println!("[✓] MicroVM booted and network is configured.");
+    println!("[✓] MicroVM booted and network is configured 🎉");
 
-    let key_name = key_name
-        .rsplit('/')
-        .next()
-        .ok_or_else(|| anyhow!("Failed to extract key name from path"))?
-        .to_string();
-
-    println!("SSH into the VM using:");
-    println!(
-        "{}",
-        format!("ssh -i ./{} root@{}", key_name, GUEST_IP).bright_green()
-    );
+    println!("SSH into the VM using the following command:");
+    println!("{}", "fireup ssh".bright_green());
 
     Ok(())
 }

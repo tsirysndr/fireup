@@ -21,7 +21,7 @@ pub fn stop() -> Result<()> {
     }
     run_command("killall", &["-s", "KILL", "firecracker"], true)?;
     run_command("rm", &["-rf", FIRECRACKER_SOCKET], true)?;
-    println!("[+] Firecracker stopped.");
+    println!("[+] Firecracker has been stopped.");
     Ok(())
 }
 

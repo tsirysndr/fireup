@@ -1,43 +1,60 @@
-use std::thread;
-
 use anyhow::Result;
+use clap::{arg, Command};
 use owo_colors::OwoColorize;
 
-use crate::command::run_command;
+use crate::cmd::{down::down, logs::logs, ssh::ssh, status::status, up::up};
 
+pub mod cmd;
 pub mod command;
+pub mod config;
 
-fn main() -> Result<()> {
-    check_kvm_support()?;
+fn cli() -> Command {
+    let banner = format!(
+        "{}",
+        r#"
+     _______           __  __
+    / ____(_)_______  / / / /___
+   / /_  / / ___/ _ \/ / / / __ \
+  / __/ / / /  /  __/ /_/ / /_/ /
+ /_/   /_/_/   \___/\____/ .___/
+                        /_/
+"#
+        .yellow()
+    );
 
-    firecracker_process::start()?;
-
-    loop {
-        thread::sleep(std::time::Duration::from_secs(1));
-        if firecracker_process::is_running() {
-            println!("[+] Firecracker is running.");
-            break;
-        }
-    }
-
-    firecracker_prepare::prepare()?;
-    firecracker_vm::setup()?;
-    Ok(())
+    Command::new("fireup")
+        .version(env!("CARGO_PKG_VERSION"))
+        .about(&banner)
+        .subcommand(Command::new("up").about("Start Firecracker MicroVM"))
+        .subcommand(Command::new("down").about("Stop Firecracker MicroVM"))
+        .subcommand(Command::new("status").about("Check the status of Firecracker MicroVM"))
+        .subcommand(
+            Command::new("logs")
+                .arg(
+                    arg!(--follow -f "Follow the logs")
+                        .short('f')
+                        .long("follow")
+                        .default_value("false"),
+                )
+                .about("View the logs of the Firecracker MicroVM"),
+        )
+        .subcommand(Command::new("ssh").about("SSH into the Firecracker MicroVM"))
 }
 
-pub fn check_kvm_support() -> Result<()> {
-    print!("[+] Checking for kvm support... ");
+fn main() -> Result<()> {
+    let matches = cli().get_matches();
 
-    if !run_command("sh", &["-c", "lsmod | grep kvm"])
-        .map(|output| output.status.success())
-        .unwrap_or(false)
-    {
-        return Err(anyhow::anyhow!(
-            "KVM is not available. Please ensure KVM is enabled in your system."
-        ));
+    match matches.subcommand() {
+        Some(("up", _)) => up()?,
+        Some(("down", _)) => down()?,
+        Some(("status", _)) => status()?,
+        Some(("logs", args)) => {
+            let follow = args.get_one::<bool>("follow").copied().unwrap_or(false);
+            logs(follow)?;
+        }
+        Some(("ssh", _)) => ssh()?,
+        _ => up()?,
     }
-
-    println!("{}", "[✓] OK".bright_green());
 
     Ok(())
 }
