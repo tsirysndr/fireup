@@ -8,7 +8,7 @@
 
 ## Features
 
-- **Quick Setup**: Prepares Firecracker kernel, Ubuntu rootfs, and SSH keys in one command.
+- **Quick Setup**: Prepares linux kernel, Ubuntu rootfs, and SSH keys in one command.
 - **Seamless VM Management**: Start, stop, and monitor Firecracker microVMs with intuitive subcommands.
 - **Network Configuration**: Automatically sets up TAP devices, IP forwarding, and NAT for connectivity.
 - **SSH Access**: Easily connect to the microVM via SSH.
