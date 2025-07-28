@@ -12,3 +12,4 @@ firecracker-vm = { path = "../firecracker-vm" }
 firecracker-prepare = { path = "../firecracker-prepare" }
 firecracker-process = { path = "../firecracker-process" }
 clap = "4.5.41"
+owo-colors = "4.2.2"

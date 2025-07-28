@@ -140,6 +140,7 @@ dependencies = [
  "firecracker-prepare",
  "firecracker-process",
  "firecracker-vm",
+ "owo-colors",
 ]
 
 [[package]]
