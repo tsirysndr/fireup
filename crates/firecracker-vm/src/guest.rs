@@ -4,7 +4,7 @@ use anyhow::Result;
 
 pub fn configure_guest_network(key_name: &str) -> Result<()> {
     println!("[+] Configuring network in guest...");
-    run_command(
+    if let Err(err) = run_command(
         "ssh",
         &[
             "-i",
@@ -15,7 +15,9 @@ pub fn configure_guest_network(key_name: &str) -> Result<()> {
             "ip route add default via 172.16.0.1 dev eth0",
         ],
         false,
-    )?;
+    ) {
+        println!("[-] Failed to set default route: {}", err);
+    }
     run_command(
         "ssh",
         &[

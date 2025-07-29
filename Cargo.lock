@@ -159,6 +159,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dirs",
+ "firecracker-prepare",
  "glob",
  "libc",
  "num_cpus",

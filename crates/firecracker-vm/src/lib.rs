@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use firecracker_prepare::PrepareOptions;
 use owo_colors::OwoColorize;
 use std::fs;
 
@@ -6,12 +7,12 @@ use crate::config::get_config_dir;
 
 mod command;
 mod config;
-mod constants;
+pub mod constants;
 mod firecracker;
 mod guest;
 mod network;
 
-pub fn setup() -> Result<()> {
+pub fn setup(options: PrepareOptions) -> Result<()> {
     let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
 
     let logfile = format!("{}/firecracker.log", app_dir);
@@ -33,7 +34,16 @@ pub fn setup() -> Result<()> {
         .display()
         .to_string();
 
-    let rootfs = glob::glob(format!("{}/*.ext4", app_dir).as_str())
+    let ext4_file = match (options.debian, options.alpine, options.ubuntu) {
+        (Some(true), _, _) => format!("{}/debian*.ext4", app_dir),
+        (_, Some(true), _) => format!("{}/alpine*.ext4", app_dir),
+        (_, _, Some(true)) | (_, _, None) => format!("{}/ubuntu*.ext4", app_dir),
+        _ => {
+            return Err(anyhow::anyhow!("No valid rootfs option provided."));
+        }
+    };
+
+    let rootfs = glob::glob(&ext4_file)
         .with_context(|| "Failed to glob rootfs files")?
         .last()
         .ok_or_else(|| anyhow!("No rootfs file found"))?
@@ -48,7 +58,7 @@ pub fn setup() -> Result<()> {
         .display()
         .to_string();
 
-    let key_name = glob::glob(format!("{}/*.id_rsa", app_dir).as_str())
+    let key_name = glob::glob(format!("{}/id_rsa", app_dir).as_str())
         .with_context(|| "Failed to glob ssh key files")?
         .last()
         .ok_or_else(|| anyhow!("No SSH key file found"))?

@@ -9,9 +9,13 @@ pub fn extract_squashfs(squashfs_file: &str, output_dir: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn create_ext4_filesystem(squashfs_dir: &str, output_file: &str) -> Result<()> {
+pub fn create_ext4_filesystem(squashfs_dir: &str, output_file: &str, size: usize) -> Result<()> {
     run_command("chown", &["-R", "root:root", squashfs_dir], true)?;
-    run_command("truncate", &["-s", "400M", output_file], false)?;
+    run_command(
+        "truncate",
+        &["-s", &format!("{}M", size), output_file],
+        false,
+    )?;
     run_command("mkfs.ext4", &["-d", squashfs_dir, "-F", output_file], true)?;
     Ok(())
 }

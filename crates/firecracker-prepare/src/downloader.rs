@@ -8,45 +8,9 @@ use crate::command::{run_command, run_command_with_stdout_inherit};
 pub fn download_files(arch: &str) -> Result<(String, String, String)> {
     let app_dir =
         crate::config::get_config_dir().with_context(|| "Failed to get configuration directory")?;
-    let output = run_command(
-        "curl",
-        &[
-            "-fsSLI",
-            "-o",
-            "/dev/null",
-            "-w",
-            "%{url_effective}",
-            "https://github.com/firecracker-microvm/firecracker/releases/latest",
-        ],
-        false,
-    )?;
-    let url = String::from_utf8_lossy(&output.stdout);
-    let version = url
-        .split('/')
-        .last()
-        .ok_or_else(|| anyhow!("Failed to parse version from URL"))?
-        .trim();
-    let ci_version = version
-        .rsplitn(2, '.')
-        .last()
-        .ok_or_else(|| anyhow!("Failed to parse CI version"))?;
+    let kernel_file = download_kernel(arch)?;
 
-    let kernel_prefix = format!("firecracker-ci/{}/{}/vmlinux-", ci_version, arch);
-    let latest_kernel_key =
-        get_latest_key("http://spec.ccfc.min.s3.amazonaws.com/", &kernel_prefix)?;
-    let kernel_file = format!(
-        "{}/{}",
-        app_dir,
-        latest_kernel_key.split('/').last().unwrap()
-    );
-
-    download_file(
-        &format!(
-            "https://s3.amazonaws.com/spec.ccfc.min/{}",
-            latest_kernel_key
-        ),
-        &kernel_file,
-    )?;
+    let ci_version = get_ci_version().with_context(|| "Failed to get CI version")?;
 
     let ubuntu_prefix = format!("firecracker-ci/{}/{}/ubuntu-", ci_version, arch);
     let latest_ubuntu_key =
@@ -81,6 +45,58 @@ pub fn download_files(arch: &str) -> Result<(String, String, String)> {
     )?;
 
     Ok((kernel_file, ubuntu_file, ubuntu_version))
+}
+
+fn get_ci_version() -> Result<String> {
+    let output = run_command(
+        "curl",
+        &[
+            "-fsSLI",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{url_effective}",
+            "https://github.com/firecracker-microvm/firecracker/releases/latest",
+        ],
+        false,
+    )?;
+    let url = String::from_utf8_lossy(&output.stdout);
+    let version = url
+        .split('/')
+        .last()
+        .ok_or_else(|| anyhow!("Failed to parse version from URL"))?
+        .trim();
+    let ci_version = version
+        .rsplitn(2, '.')
+        .last()
+        .ok_or_else(|| anyhow!("Failed to parse CI version"))?;
+    Ok(ci_version.to_string())
+}
+
+pub fn download_kernel(arch: &str) -> Result<String> {
+    let app_dir =
+        crate::config::get_config_dir().with_context(|| "Failed to get configuration directory")?;
+    let ci_version =
+        get_ci_version().with_context(|| "Failed to get CI version for kernel download")?;
+
+    let kernel_prefix = format!("firecracker-ci/{}/{}/vmlinux-", ci_version, arch);
+    let latest_kernel_key =
+        get_latest_key("http://spec.ccfc.min.s3.amazonaws.com/", &kernel_prefix)?;
+    let kernel_file = format!(
+        "{}/{}",
+        app_dir,
+        latest_kernel_key.split('/').last().unwrap()
+    );
+
+    download_file(
+        &format!(
+            "https://s3.amazonaws.com/spec.ccfc.min/{}",
+            latest_kernel_key
+        ),
+        &kernel_file,
+    )?;
+
+    Ok(kernel_file)
 }
 
 fn get_latest_key(url: &str, prefix: &str) -> Result<String> {

@@ -1,11 +1,29 @@
 use std::thread;
 
 use anyhow::Error;
+use firecracker_prepare::PrepareOptions;
 use owo_colors::OwoColorize;
 
 use crate::command::run_command;
 
-pub fn up() -> Result<(), Error> {
+#[derive(Default, Clone)]
+pub struct UpOptions {
+    pub debian: Option<bool>,
+    pub alpine: Option<bool>,
+    pub ubuntu: Option<bool>,
+}
+
+impl Into<PrepareOptions> for UpOptions {
+    fn into(self) -> PrepareOptions {
+        PrepareOptions {
+            debian: self.debian,
+            alpine: self.alpine,
+            ubuntu: self.ubuntu,
+        }
+    }
+}
+
+pub fn up(options: UpOptions) -> Result<(), Error> {
     check_kvm_support()?;
 
     firecracker_process::start()?;
@@ -18,8 +36,8 @@ pub fn up() -> Result<(), Error> {
         }
     }
 
-    firecracker_prepare::prepare()?;
-    firecracker_vm::setup()?;
+    firecracker_prepare::prepare(options.clone().into())?;
+    firecracker_vm::setup(options.into())?;
     Ok(())
 }
 

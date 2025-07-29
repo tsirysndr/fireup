@@ -2,7 +2,14 @@ use anyhow::Result;
 use clap::{arg, Command};
 use owo_colors::OwoColorize;
 
-use crate::cmd::{down::down, logs::logs, reset::reset, ssh::ssh, status::status, up::up};
+use crate::cmd::{
+    down::down,
+    logs::logs,
+    reset::reset,
+    ssh::ssh,
+    status::status,
+    up::{up, UpOptions},
+};
 
 pub mod cmd;
 pub mod command;
@@ -25,7 +32,13 @@ fn cli() -> Command {
     Command::new("fireup")
         .version(env!("CARGO_PKG_VERSION"))
         .about(&banner)
-        .subcommand(Command::new("up").about("Start Firecracker MicroVM"))
+        .subcommand(
+            Command::new("up")
+                .arg(arg!(--debian "Prepare Debian rootfs").default_value("false"))
+                .arg(arg!(--alpine "Prepare Alpine rootfs").default_value("false"))
+                .arg(arg!(--ubuntu "Prepare Ubuntu rootfs").default_value("true"))
+                .about("Start Firecracker MicroVM"),
+        )
         .subcommand(Command::new("down").about("Stop Firecracker MicroVM"))
         .subcommand(Command::new("status").about("Check the status of Firecracker MicroVM"))
         .subcommand(
@@ -40,13 +53,23 @@ fn cli() -> Command {
         )
         .subcommand(Command::new("ssh").about("SSH into the Firecracker MicroVM"))
         .subcommand(Command::new("reset").about("Reset the Firecracker MicroVM"))
+        .arg(arg!(--debian "Prepare Debian rootfs").default_value("false"))
+        .arg(arg!(--alpine "Prepare Alpine rootfs").default_value("false"))
+        .arg(arg!(--ubuntu "Prepare Ubuntu rootfs").default_value("true"))
 }
 
 fn main() -> Result<()> {
     let matches = cli().get_matches();
 
     match matches.subcommand() {
-        Some(("up", _)) => up()?,
+        Some(("up", args)) => {
+            let options = UpOptions {
+                debian: args.get_one::<bool>("debian").copied(),
+                alpine: args.get_one::<bool>("alpine").copied(),
+                ubuntu: args.get_one::<bool>("ubuntu").copied(),
+            };
+            up(options)?
+        }
         Some(("down", _)) => down()?,
         Some(("status", _)) => status()?,
         Some(("logs", args)) => {
@@ -55,7 +78,18 @@ fn main() -> Result<()> {
         }
         Some(("ssh", _)) => ssh()?,
         Some(("reset", _)) => reset()?,
-        _ => up()?,
+        _ => {
+            // get args
+            let debian = matches.get_one::<bool>("debian").copied().unwrap_or(false);
+            let alpine = matches.get_one::<bool>("alpine").copied().unwrap_or(false);
+            let ubuntu = matches.get_one::<bool>("ubuntu").copied().unwrap_or(true);
+            let options = UpOptions {
+                debian: Some(debian),
+                alpine: Some(alpine),
+                ubuntu: Some(ubuntu),
+            };
+            up(options)?
+        }
     }
 
     Ok(())
