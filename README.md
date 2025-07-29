@@ -37,4 +37,5 @@ sudo apt-get install fireup
 - `status`: Checks the status of the Firecracker microVM (running, stopped, or errored).
 - `logs`: Displays the logs of the Firecracker microVM from the log file.
 - `ssh`: Connects to the Firecracker microVM via SSH.
+- `reset`: Resets the Firecracker microVM, stopping it and preparing it for a fresh start.
 - `help`: Prints help information for the CLI or specific subcommands.

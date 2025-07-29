@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{arg, Command};
 use owo_colors::OwoColorize;
 
-use crate::cmd::{down::down, logs::logs, ssh::ssh, status::status, up::up};
+use crate::cmd::{down::down, logs::logs, reset::reset, ssh::ssh, status::status, up::up};
 
 pub mod cmd;
 pub mod command;
@@ -39,6 +39,7 @@ fn cli() -> Command {
                 .about("View the logs of the Firecracker MicroVM"),
         )
         .subcommand(Command::new("ssh").about("SSH into the Firecracker MicroVM"))
+        .subcommand(Command::new("reset").about("Reset the Firecracker MicroVM"))
 }
 
 fn main() -> Result<()> {
@@ -53,6 +54,7 @@ fn main() -> Result<()> {
             logs(follow)?;
         }
         Some(("ssh", _)) => ssh()?,
+        Some(("reset", _)) => reset()?,
         _ => up()?,
     }
 

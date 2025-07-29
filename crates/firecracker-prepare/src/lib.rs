@@ -25,7 +25,14 @@ pub fn prepare() -> Result<()> {
 
     let ext4_file = format!("{}/ubuntu-{}.ext4", app_dir, ubuntu_version);
 
-    rootfs::create_ext4_filesystem(&squashfs_root_dir, &ext4_file)?;
+    if !std::path::Path::new(&ext4_file).exists() {
+        rootfs::create_ext4_filesystem(&squashfs_root_dir, &ext4_file)?;
+    } else {
+        println!(
+            "[!] {} already exists, skipping ext4 creation.",
+            ext4_file.bright_yellow()
+        );
+    }
 
     let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
 
