@@ -11,6 +11,8 @@ pub mod downloader;
 pub mod rootfs;
 pub mod ssh;
 
+pub const GUEST_IP: &str = "172.16.0.2";
+
 #[derive(Default, Clone)]
 pub struct PrepareOptions {
     pub debian: Option<bool>,
@@ -136,5 +138,113 @@ pub fn prepare_debian(arch: &str) -> Result<(String, String, String)> {
 
 pub fn prepare_alpine(arch: &str) -> Result<(String, String, String)> {
     let kernel_file = downloader::download_kernel(arch)?;
-    unimplemented!("Alpine preparation is not implemented yet.");
+    let app_dir = config::get_config_dir()?;
+    let minirootfs = format!("{}/minirootfs", app_dir);
+    downloader::download_alpine_rootfs(&minirootfs, arch)?;
+
+    run_command(
+        "sh",
+        &[
+            "-c",
+            &format!("echo 'nameserver 8.8.8.8' > {}/etc/resolv.conf", minirootfs),
+        ],
+        true,
+    )?;
+    if !run_command("chroot", &[&minirootfs, "which", "sshd"], true)
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+    {
+        run_command_with_stdout_inherit("chroot", &[&minirootfs, "apk", "update"], true)?;
+        run_command_with_stdout_inherit(
+            "chroot",
+            &[
+                &minirootfs,
+                "apk",
+                "add",
+                "alpine-base",
+                "util-linux",
+                "linux-virt",
+                "haveged",
+                "openssh",
+            ],
+            true,
+        )?;
+    }
+
+    run_command_with_stdout_inherit(
+        "chroot",
+        &[&minirootfs, "rc-update", "add", "haveged"],
+        true,
+    )?;
+    run_command(
+        "chroot",
+        &[
+            &minirootfs,
+            "sh",
+            "-c",
+            "for svc in devfs procfs sysfs; do ln -fs /etc/init.d/$svc /etc/runlevels/boot; done",
+        ],
+        true,
+    )?;
+    if !run_command(
+        "chroot",
+        &[
+            &minirootfs,
+            "ln",
+            "-s",
+            "agetty",
+            "/etc/init.d/agetty.ttyS0",
+        ],
+        true,
+    )
+    .map(|output| output.status.success())
+    .unwrap_or(false)
+    {
+        println!("[!] Failed to create symlink for agetty.ttyS0, please check manually.");
+    }
+    run_command_with_stdout_inherit(
+        "chroot",
+        &[&minirootfs, "sh", "-c", "echo ttyS0 > /etc/securetty"],
+        true,
+    )?;
+    run_command(
+        "chroot",
+        &[&minirootfs, "rc-update", "add", "agetty.ttyS0", "default"],
+        true,
+    )?;
+
+    run_command("chroot", &[&minirootfs, "rc-update", "add", "sshd"], true)?;
+    run_command(
+        "chroot",
+        &[&minirootfs, "rc-update", "add", "networking", "boot"],
+        true,
+    )?;
+    run_command(
+        "chroot",
+        &[&minirootfs, "mkdir", "-p", "/root/.ssh", "/etc/network"],
+        true,
+    )?;
+
+    run_command(
+        "chroot",
+        &[
+            &minirootfs,
+            "sh",
+            "-c",
+            &format!("echo 'auto eth0\niface eth0 inet static\n  address {}\n  netmask 255.255.255.0\n  gateway 172.16.0.1\n' > /etc/network/interfaces", GUEST_IP),
+        ],
+        true,
+    )?;
+
+    let ssh_key_name = "id_rsa";
+    ssh::generate_and_copy_ssh_key(&ssh_key_name, &minirootfs)?;
+
+    let ext4_file = format!("{}/alpine-{}.ext4", app_dir, arch);
+    if !std::path::Path::new(&ext4_file).exists() {
+        rootfs::create_ext4_filesystem(&minirootfs, &ext4_file, 500)?;
+    }
+
+    let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+
+    Ok((kernel_file, ext4_file, ssh_key_file))
 }

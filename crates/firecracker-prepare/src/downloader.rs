@@ -160,3 +160,13 @@ fn download_file(url: &str, output: &str) -> Result<()> {
     run_command_with_stdout_inherit("wget", &["-O", output, url], false)?;
     Ok(())
 }
+
+pub fn download_alpine_rootfs(minirootfs: &str, arch: &str) -> Result<()> {
+    let app_dir = crate::config::get_config_dir()?;
+    let output = format!("{}/alpine-{}.tar.gz", app_dir, arch);
+    const ALPINE_VERSION: &str = "3.22";
+    download_file(&format!("https://mirrors.aliyun.com/alpine/v{}/releases/x86_64/alpine-minirootfs-{}.0-{}.tar.gz", ALPINE_VERSION, ALPINE_VERSION, arch), &output)?;
+    run_command("mkdir", &["-p", minirootfs], true)?;
+    run_command("tar", &["-xzf", &output, "-C", minirootfs], true)?;
+    Ok(())
+}
