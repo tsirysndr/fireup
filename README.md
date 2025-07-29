@@ -23,6 +23,14 @@ You can install `fireup` using bash:
 curl -sSL https://raw.githubusercontent.com/tsirysndr/fireup/main/install.sh | bash
 ```
 
+### Ubuntu/Debian
+
+```
+echo "deb [trusted=yes] https://apt.fury.io/tsiry/ /" | sudo tee /etc/apt/sources.list.d/fury.list
+sudo apt-get update
+sudo apt-get install fireup
+```
+
 ## Subcommands
 - `up`: Starts the Firecracker microVM, preparing assets and configuring the network if needed.
 - `down`: Stops the running Firecracker microVM.
