@@ -16,6 +16,8 @@ pub fn ssh() -> Result<(), Error> {
             &private_key?.display().to_string(),
             "-o",
             "StrictHostKeyChecking=no",
+            "-o",
+            "UserKnownHostsFile=/dev/null",
             &format!("root@{}", GUEST_IP),
         ],
         true,

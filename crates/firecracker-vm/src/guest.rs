@@ -16,7 +16,9 @@ pub fn configure_guest_network(key_name: &str) -> Result<()> {
         ],
         false,
     ) {
-        println!("[-] Failed to set default route: {}", err);
+        if !err.to_string().contains("RTNETLINK answers: File exists") {
+            println!("[-] Failed to set default route: {}", err);
+        }
     }
     run_command(
         "ssh",
