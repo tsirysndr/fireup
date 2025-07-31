@@ -165,8 +165,9 @@ fn setup_vcpu_and_memory(n: usize, memory: usize) -> Result<()> {
     let payload = json!({
         "vcpu_count": n,
         "mem_size_mib": memory,
-        "stmt": false,
+        "smt": false,
     });
+    println!("{}", payload.to_string());
     run_command(
         "curl",
         &[
