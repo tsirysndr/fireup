@@ -82,7 +82,6 @@ fn main() -> Result<()> {
         Some(("ssh", _)) => ssh()?,
         Some(("reset", _)) => reset()?,
         _ => {
-            // get args
             let debian = matches.get_one::<bool>("debian").copied().unwrap_or(false);
             let alpine = matches.get_one::<bool>("alpine").copied().unwrap_or(false);
             let nixos = matches.get_one::<bool>("nixos").copied().unwrap_or(false);
