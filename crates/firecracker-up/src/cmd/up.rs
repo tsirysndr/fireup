@@ -11,6 +11,7 @@ pub struct UpOptions {
     pub debian: Option<bool>,
     pub alpine: Option<bool>,
     pub ubuntu: Option<bool>,
+    pub nixos: Option<bool>,
 }
 
 impl Into<PrepareOptions> for UpOptions {
@@ -19,6 +20,7 @@ impl Into<PrepareOptions> for UpOptions {
             debian: self.debian,
             alpine: self.alpine,
             ubuntu: self.ubuntu,
+            nixos: self.nixos,
         }
     }
 }

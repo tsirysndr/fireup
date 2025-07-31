@@ -3,7 +3,14 @@ use anyhow::Result;
 use crate::command::run_command;
 
 pub fn extract_squashfs(squashfs_file: &str, output_dir: &str) -> Result<()> {
-    run_command("rm", &["-rf", output_dir], true)?;
+    if std::path::Path::new(output_dir).exists() {
+        println!(
+            "[!] Warning: {} already exists, skipping extraction.",
+            output_dir
+        );
+        return Ok(());
+    }
+
     println!("Extracting rootfs...");
     run_command("unsquashfs", &["-d", output_dir, squashfs_file], false)?;
     Ok(())

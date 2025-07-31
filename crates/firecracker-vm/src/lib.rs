@@ -34,10 +34,16 @@ pub fn setup(options: PrepareOptions) -> Result<()> {
         .display()
         .to_string();
 
-    let ext4_file = match (options.debian, options.alpine, options.ubuntu) {
-        (Some(true), _, _) => format!("{}/debian*.ext4", app_dir),
-        (_, Some(true), _) => format!("{}/alpine*.ext4", app_dir),
-        (_, _, Some(true)) | (_, _, None) => format!("{}/ubuntu*.ext4", app_dir),
+    let ext4_file = match (
+        options.debian,
+        options.alpine,
+        options.ubuntu,
+        options.nixos,
+    ) {
+        (Some(true), _, _, _) => format!("{}/debian*.ext4", app_dir),
+        (_, Some(true), _, _) => format!("{}/alpine*.ext4", app_dir),
+        (_, _, _, Some(true)) => format!("{}/nixos*.ext4", app_dir),
+        (_, _, Some(true), _) => format!("{}/ubuntu*.ext4", app_dir),
         _ => {
             return Err(anyhow::anyhow!("No valid rootfs option provided."));
         }
@@ -76,7 +82,10 @@ pub fn setup(options: PrepareOptions) -> Result<()> {
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     network::setup_network()?;
     firecracker::configure(&logfile, &kernel, &rootfs, &arch)?;
-    guest::configure_guest_network(&key_name)?;
+
+    if !rootfs.contains("nixos") {
+        guest::configure_guest_network(&key_name)?;
+    }
 
     println!("[✓] MicroVM booted and network is configured 🎉");
 

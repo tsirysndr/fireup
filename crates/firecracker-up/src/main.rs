@@ -36,6 +36,7 @@ fn cli() -> Command {
             Command::new("up")
                 .arg(arg!(--debian "Prepare Debian rootfs").default_value("false"))
                 .arg(arg!(--alpine "Prepare Alpine rootfs").default_value("false"))
+                .arg(arg!(--nixos "Prepare NixOS rootfs").default_value("false"))
                 .arg(arg!(--ubuntu "Prepare Ubuntu rootfs").default_value("true"))
                 .about("Start Firecracker MicroVM"),
         )
@@ -55,6 +56,7 @@ fn cli() -> Command {
         .subcommand(Command::new("reset").about("Reset the Firecracker MicroVM"))
         .arg(arg!(--debian "Prepare Debian rootfs").default_value("false"))
         .arg(arg!(--alpine "Prepare Alpine rootfs").default_value("false"))
+        .arg(arg!(--nixos "Prepare NixOS rootfs").default_value("false"))
         .arg(arg!(--ubuntu "Prepare Ubuntu rootfs").default_value("true"))
 }
 
@@ -67,6 +69,7 @@ fn main() -> Result<()> {
                 debian: args.get_one::<bool>("debian").copied(),
                 alpine: args.get_one::<bool>("alpine").copied(),
                 ubuntu: args.get_one::<bool>("ubuntu").copied(),
+                nixos: args.get_one::<bool>("nixos").copied(),
             };
             up(options)?
         }
@@ -82,11 +85,13 @@ fn main() -> Result<()> {
             // get args
             let debian = matches.get_one::<bool>("debian").copied().unwrap_or(false);
             let alpine = matches.get_one::<bool>("alpine").copied().unwrap_or(false);
-            let ubuntu = matches.get_one::<bool>("ubuntu").copied().unwrap_or(true);
+            let nixos = matches.get_one::<bool>("nixos").copied().unwrap_or(false);
+            let ubuntu = matches.get_one::<bool>("ubuntu").copied().unwrap_or(false);
             let options = UpOptions {
                 debian: Some(debian),
                 alpine: Some(alpine),
                 ubuntu: Some(ubuntu),
+                nixos: Some(nixos),
             };
             up(options)?
         }

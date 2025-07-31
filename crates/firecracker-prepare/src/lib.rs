@@ -18,6 +18,7 @@ pub struct PrepareOptions {
     pub debian: Option<bool>,
     pub alpine: Option<bool>,
     pub ubuntu: Option<bool>,
+    pub nixos: Option<bool>,
 }
 
 pub fn prepare(options: PrepareOptions) -> Result<()> {
@@ -26,15 +27,20 @@ pub fn prepare(options: PrepareOptions) -> Result<()> {
 
     println!("[+] Detected architecture: {}", arch.bright_green());
 
-    let (kernel_file, ext4_file, ssh_key_file) =
-        match (options.debian, options.alpine, options.ubuntu) {
-            (Some(true), _, _) => prepare_debian(&arch)?,
-            (_, Some(true), _) => prepare_alpine(&arch)?,
-            (_, _, Some(true)) | (_, _, None) => prepare_ubuntu(&arch)?,
-            _ => {
-                return Err(anyhow::anyhow!("No valid rootfs option provided."));
-            }
-        };
+    let (kernel_file, ext4_file, ssh_key_file) = match (
+        options.debian,
+        options.alpine,
+        options.ubuntu,
+        options.nixos,
+    ) {
+        (Some(true), _, _, _) => prepare_debian(&arch)?,
+        (_, Some(true), _, _) => prepare_alpine(&arch)?,
+        (_, _, _, Some(true)) => prepare_nixos(&arch)?,
+        (_, _, Some(true), _) => prepare_ubuntu(&arch)?,
+        _ => {
+            return Err(anyhow::anyhow!("No valid rootfs option provided."));
+        }
+    };
 
     println!("[✓] Kernel: {}", kernel_file.bright_green());
     println!("[✓] Rootfs: {}", ext4_file.bright_green());
@@ -44,6 +50,7 @@ pub fn prepare(options: PrepareOptions) -> Result<()> {
 }
 
 pub fn prepare_ubuntu(arch: &str) -> Result<(String, String, String)> {
+    println!("[+] Preparing Ubuntu rootfs for {}...", arch.bright_green());
     let (kernel_file, ubuntu_file, ubuntu_version) = downloader::download_files(arch)?;
 
     let app_dir = config::get_config_dir()?;
@@ -71,6 +78,7 @@ pub fn prepare_ubuntu(arch: &str) -> Result<(String, String, String)> {
 }
 
 pub fn prepare_debian(arch: &str) -> Result<(String, String, String)> {
+    println!("[+] Preparing Debian rootfs for {}...", arch.bright_green());
     let kernel_file = downloader::download_kernel(arch)?;
     let app_dir = config::get_config_dir()?;
     let debootstrap_dir: &str = &format!("{}/debootstrap", app_dir);
@@ -137,6 +145,7 @@ pub fn prepare_debian(arch: &str) -> Result<(String, String, String)> {
 }
 
 pub fn prepare_alpine(arch: &str) -> Result<(String, String, String)> {
+    println!("[+] Preparing Alpine rootfs for {}...", arch.bright_green());
     let kernel_file = downloader::download_kernel(arch)?;
     let app_dir = config::get_config_dir()?;
     let minirootfs = format!("{}/minirootfs", app_dir);
@@ -247,4 +256,33 @@ pub fn prepare_alpine(arch: &str) -> Result<(String, String, String)> {
     let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
 
     Ok((kernel_file, ext4_file, ssh_key_file))
+}
+
+pub fn prepare_nixos(arch: &str) -> Result<(String, String, String)> {
+    println!("[+] Preparing NixOS rootfs for {}...", arch.bright_green());
+
+    let kernel_file = downloader::download_kernel(arch)?;
+    let app_dir = config::get_config_dir()?;
+    let nixos_rootfs = format!("{}/nixosrootfs", app_dir);
+    let squashfs_file = format!("{}/nixos-rootfs.squashfs", app_dir);
+
+    downloader::download_nixos_rootfs(arch)?;
+    rootfs::extract_squashfs(&squashfs_file, &nixos_rootfs)?;
+
+    let ssh_key_name = "id_rsa";
+    ssh::generate_and_copy_ssh_key_nixos(&ssh_key_name, &nixos_rootfs)?;
+
+    let ext4_file = format!("{}/{}", app_dir, "nixos-rootfs.ext4");
+    if !std::path::Path::new(&ext4_file).exists() {
+        rootfs::create_ext4_filesystem(&nixos_rootfs, &ext4_file, 5120)?;
+    }
+
+    let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+
+    println!(
+        "[+] NixOS rootfs prepared at: {}",
+        nixos_rootfs.bright_green()
+    );
+
+    Ok((kernel_file, ext4_file.into(), ssh_key_file))
 }

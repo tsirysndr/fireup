@@ -170,3 +170,10 @@ pub fn download_alpine_rootfs(minirootfs: &str, arch: &str) -> Result<()> {
     run_command("tar", &["-xzf", &output, "-C", minirootfs], true)?;
     Ok(())
 }
+
+pub fn download_nixos_rootfs(_arch: &str) -> Result<()> {
+    let app_dir = crate::config::get_config_dir()?;
+    let output = format!("{}/nixos-rootfs.squashfs", app_dir);
+    download_file("https://public.rocksky.app/nixos-rootfs.squashfs", &output)?;
+    Ok(())
+}
