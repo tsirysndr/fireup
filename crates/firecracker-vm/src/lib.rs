@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use firecracker_prepare::PrepareOptions;
+use firecracker_prepare::Distro;
 use owo_colors::OwoColorize;
 use std::fs;
 
@@ -12,7 +12,7 @@ mod firecracker;
 mod guest;
 mod network;
 
-pub fn setup(options: PrepareOptions) -> Result<()> {
+pub fn setup(distro: Distro) -> Result<()> {
     let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
 
     let logfile = format!("{}/firecracker.log", app_dir);
@@ -34,19 +34,11 @@ pub fn setup(options: PrepareOptions) -> Result<()> {
         .display()
         .to_string();
 
-    let ext4_file = match (
-        options.debian,
-        options.alpine,
-        options.ubuntu,
-        options.nixos,
-    ) {
-        (Some(true), _, _, _) => format!("{}/debian*.ext4", app_dir),
-        (_, Some(true), _, _) => format!("{}/alpine*.ext4", app_dir),
-        (_, _, _, Some(true)) => format!("{}/nixos*.ext4", app_dir),
-        (_, _, Some(true), _) => format!("{}/ubuntu*.ext4", app_dir),
-        _ => {
-            return Err(anyhow::anyhow!("No valid rootfs option provided."));
-        }
+    let ext4_file = match distro {
+        Distro::Debian => format!("{}/debian*.ext4", app_dir),
+        Distro::Alpine => format!("{}/alpine*.ext4", app_dir),
+        Distro::NixOS => format!("{}/nixos*.ext4", app_dir),
+        Distro::Ubuntu => format!("{}/ubuntu*.ext4", app_dir),
     };
 
     let rootfs = glob::glob(&ext4_file)

@@ -1,7 +1,7 @@
 use std::thread;
 
 use anyhow::Error;
-use firecracker_prepare::PrepareOptions;
+use firecracker_prepare::Distro;
 use owo_colors::OwoColorize;
 
 use crate::command::run_command;
@@ -14,13 +14,18 @@ pub struct UpOptions {
     pub nixos: Option<bool>,
 }
 
-impl Into<PrepareOptions> for UpOptions {
-    fn into(self) -> PrepareOptions {
-        PrepareOptions {
-            debian: self.debian,
-            alpine: self.alpine,
-            ubuntu: self.ubuntu,
-            nixos: self.nixos,
+impl Into<Distro> for UpOptions {
+    fn into(self) -> Distro {
+        if self.debian.unwrap_or(false) {
+            Distro::Debian
+        } else if self.alpine.unwrap_or(false) {
+            Distro::Alpine
+        } else if self.nixos.unwrap_or(false) {
+            Distro::NixOS
+        } else if self.ubuntu.unwrap_or(true) {
+            Distro::Ubuntu
+        } else {
+            panic!("No valid distribution option provided.");
         }
     }
 }
