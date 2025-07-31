@@ -12,7 +12,7 @@ mod firecracker;
 mod guest;
 mod network;
 
-pub fn setup(distro: Distro) -> Result<()> {
+pub fn setup(distro: Distro, vcpu: u16, memory: u16) -> Result<()> {
     let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
 
     let logfile = format!("{}/firecracker.log", app_dir);
@@ -73,7 +73,7 @@ pub fn setup(distro: Distro) -> Result<()> {
     let arch = command::run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     network::setup_network()?;
-    firecracker::configure(&logfile, &kernel, &rootfs, &arch)?;
+    firecracker::configure(&logfile, &kernel, &rootfs, &arch, vcpu, memory)?;
 
     if !rootfs.contains("nixos") {
         guest::configure_guest_network(&key_name)?;

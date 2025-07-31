@@ -178,6 +178,7 @@ dependencies = [
  "firecracker-process",
  "firecracker-vm",
  "glob",
+ "num_cpus",
  "owo-colors",
 ]
 

@@ -8,15 +8,19 @@ use crate::command::run_command;
 
 const NIXOS_BOOT_ARGS: &str = "init=/nix/store/pq529c6dd6x5vaxak4vpyxrv17ydvnwr-nixos-system-nixos-firecracker-25.05.802216.55d1f923c480/init root=/dev/vda ro console=ttyS0 reboot=k panic=1";
 
-pub fn configure(logfile: &str, kernel: &str, rootfs: &str, arch: &str) -> Result<()> {
+pub fn configure(
+    logfile: &str,
+    kernel: &str,
+    rootfs: &str,
+    arch: &str,
+    vcpu: u16,
+    memory: u16,
+) -> Result<()> {
     configure_logger(logfile)?;
     setup_boot_source(kernel, arch, rootfs.contains("nixos"))?;
     setup_rootfs(rootfs)?;
     setup_network_interface()?;
-    setup_vcpu_and_memory(
-        num_cpus::get(),
-        if rootfs.contains("nixos") { 2048 } else { 512 },
-    )?;
+    setup_vcpu_and_memory(vcpu, memory)?;
 
     // Wait before starting instance
     sleep(Duration::from_millis(15));
@@ -160,7 +164,7 @@ fn start_microvm() -> Result<()> {
     Ok(())
 }
 
-fn setup_vcpu_and_memory(n: usize, memory: usize) -> Result<()> {
+fn setup_vcpu_and_memory(n: u16, memory: u16) -> Result<()> {
     println!("[+] Setting vCPU and memory...");
     let payload = json!({
         "vcpu_count": n,

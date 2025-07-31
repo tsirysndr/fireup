@@ -12,6 +12,8 @@ pub struct UpOptions {
     pub alpine: Option<bool>,
     pub ubuntu: Option<bool>,
     pub nixos: Option<bool>,
+    pub vcpu: u16,
+    pub memory: u16,
 }
 
 impl Into<Distro> for UpOptions {
@@ -44,7 +46,7 @@ pub fn up(options: UpOptions) -> Result<(), Error> {
     }
 
     firecracker_prepare::prepare(options.clone().into())?;
-    firecracker_vm::setup(options.into())?;
+    firecracker_vm::setup(options.clone().into(), options.vcpu, options.memory)?;
     Ok(())
 }
 

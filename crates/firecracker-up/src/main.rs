@@ -38,6 +38,8 @@ fn cli() -> Command {
                 .arg(arg!(--alpine "Prepare Alpine rootfs").default_value("false"))
                 .arg(arg!(--nixos "Prepare NixOS rootfs").default_value("false"))
                 .arg(arg!(--ubuntu "Prepare Ubuntu rootfs").default_value("true"))
+                .arg(arg!(--vcpu <n> "Number of vCPUs"))
+                .arg(arg!(--memory <m> "Memory size in MiB"))
                 .about("Start Firecracker MicroVM"),
         )
         .subcommand(Command::new("down").about("Stop Firecracker MicroVM"))
@@ -58,6 +60,8 @@ fn cli() -> Command {
         .arg(arg!(--alpine "Prepare Alpine rootfs").default_value("false"))
         .arg(arg!(--nixos "Prepare NixOS rootfs").default_value("false"))
         .arg(arg!(--ubuntu "Prepare Ubuntu rootfs").default_value("true"))
+        .arg(arg!(--vcpu <n> "Number of vCPUs"))
+        .arg(arg!(--memory <m> "Memory size in MiB"))
 }
 
 fn main() -> Result<()> {
@@ -65,11 +69,21 @@ fn main() -> Result<()> {
 
     match matches.subcommand() {
         Some(("up", args)) => {
+            let vcpu = matches
+                .get_one::<String>("vcpu")
+                .map(|s| s.parse::<u16>().unwrap())
+                .unwrap_or(num_cpus::get() as u16);
+            let memory = matches
+                .get_one::<String>("memory")
+                .map(|s| s.parse::<u16>().unwrap())
+                .unwrap_or(512);
             let options = UpOptions {
                 debian: args.get_one::<bool>("debian").copied(),
                 alpine: args.get_one::<bool>("alpine").copied(),
                 ubuntu: args.get_one::<bool>("ubuntu").copied(),
                 nixos: args.get_one::<bool>("nixos").copied(),
+                vcpu,
+                memory,
             };
             up(options)?
         }
@@ -86,11 +100,22 @@ fn main() -> Result<()> {
             let alpine = matches.get_one::<bool>("alpine").copied().unwrap_or(false);
             let nixos = matches.get_one::<bool>("nixos").copied().unwrap_or(false);
             let ubuntu = matches.get_one::<bool>("ubuntu").copied().unwrap_or(false);
+            let vcpu = matches
+                .get_one::<String>("vcpu")
+                .map(|s| s.parse::<u16>().unwrap())
+                .unwrap_or(num_cpus::get() as u16);
+            let memory = matches
+                .get_one::<String>("memory")
+                .map(|s| s.parse::<u16>().unwrap())
+                .unwrap_or(if nixos { 2048 } else { 512 });
+
             let options = UpOptions {
                 debian: Some(debian),
                 alpine: Some(alpine),
                 ubuntu: Some(ubuntu),
                 nixos: Some(nixos),
+                vcpu,
+                memory,
             };
             up(options)?
         }
