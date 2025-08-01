@@ -73,9 +73,9 @@ pub fn setup(distro: Distro, vcpu: u16, memory: u16) -> Result<()> {
     let arch = command::run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     network::setup_network()?;
-    firecracker::configure(&logfile, &kernel, &rootfs, &arch, vcpu, memory)?;
+    firecracker::configure(&logfile, &kernel, &rootfs, &arch, vcpu, memory, distro)?;
 
-    if !rootfs.contains("nixos") {
+    if distro != Distro::NixOS {
         guest::configure_guest_network(&key_name)?;
     }
 

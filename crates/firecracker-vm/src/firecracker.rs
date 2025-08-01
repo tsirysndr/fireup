@@ -1,5 +1,6 @@
 use crate::constants::{API_SOCKET, FC_MAC, TAP_DEV};
 use anyhow::Result;
+use firecracker_prepare::Distro;
 use serde_json::json;
 use std::thread::sleep;
 use std::time::Duration;
@@ -15,9 +16,10 @@ pub fn configure(
     arch: &str,
     vcpu: u16,
     memory: u16,
+    distro: Distro,
 ) -> Result<()> {
     configure_logger(logfile)?;
-    setup_boot_source(kernel, arch, rootfs.contains("nixos"))?;
+    setup_boot_source(kernel, arch, distro == Distro::NixOS)?;
     setup_rootfs(rootfs)?;
     setup_network_interface()?;
     setup_vcpu_and_memory(vcpu, memory)?;
