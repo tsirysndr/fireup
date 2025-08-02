@@ -1,4 +1,7 @@
-use crate::constants::{MASK_SHORT, TAP_DEV, TAP_IP};
+use crate::{
+    constants::{BRIDGE_DEV, BRIDGE_IP, MASK_SHORT, TAP_DEV},
+    dnsmasq::setup_dnsmasq,
+};
 use anyhow::{anyhow, Context, Result};
 use serde_json::Value;
 
@@ -10,30 +13,53 @@ fn check_tap_exists() -> bool {
         .unwrap_or(false)
 }
 
+fn check_bridge_exists() -> bool {
+    run_command("ip", &["link", "show", BRIDGE_DEV], false)
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
 pub fn setup_network() -> Result<()> {
     if check_tap_exists() {
+        run_command("ip", &["addr", "flush", "dev", TAP_DEV], true)?;
+    }
+
+    if check_tap_exists() && check_bridge_exists() {
         println!("[✓] Network already configured. Skipping setup.");
         return Ok(());
     }
 
-    println!("[+] Configuring {}...", TAP_DEV);
-    run_command(
-        "ip",
-        &["tuntap", "add", "dev", TAP_DEV, "mode", "tap"],
-        true,
-    )?;
-    run_command(
-        "ip",
-        &[
-            "addr",
-            "add",
-            &format!("{}{}", TAP_IP, MASK_SHORT),
-            "dev",
-            TAP_DEV,
-        ],
-        true,
-    )?;
-    run_command("ip", &["link", "set", "dev", TAP_DEV, "up"], true)?;
+    if !check_tap_exists() {
+        println!("[+] Configuring {}...", TAP_DEV);
+        run_command(
+            "ip",
+            &["tuntap", "add", "dev", TAP_DEV, "mode", "tap"],
+            true,
+        )?;
+        run_command("ip", &["link", "set", "dev", TAP_DEV, "up"], true)?;
+    }
+
+    if !check_bridge_exists() {
+        println!("[+] Configuring {}...", BRIDGE_DEV);
+        run_command(
+            "ip",
+            &["link", "add", "name", BRIDGE_DEV, "type", "bridge"],
+            true,
+        )?;
+        run_command("ip", &["link", "set", BRIDGE_DEV, "up"], true)?;
+        run_command("ip", &["link", "set", TAP_DEV, "master", BRIDGE_DEV], true)?;
+        run_command(
+            "ip",
+            &[
+                "addr",
+                "add",
+                &format!("{}{}", BRIDGE_IP, MASK_SHORT),
+                "dev",
+                BRIDGE_DEV,
+            ],
+            true,
+        )?;
+    }
 
     let ip_forward = run_command("cat", &["/proc/sys/net/ipv4/ip_forward"], false)?.stdout;
     if String::from_utf8_lossy(&ip_forward).trim() != "1" {
@@ -85,5 +111,8 @@ pub fn setup_network() -> Result<()> {
     }
 
     run_command("iptables", &["-P", "FORWARD", "ACCEPT"], true)?;
+
+    setup_dnsmasq()?;
+
     Ok(())
 }

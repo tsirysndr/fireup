@@ -12,7 +12,7 @@ pub mod downloader;
 pub mod rootfs;
 pub mod ssh;
 
-pub const GUEST_IP: &str = "172.16.0.2";
+const BBRIDGE_IP: &str = "172.16.0.1";
 
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
 pub enum Distro {
@@ -131,7 +131,10 @@ impl RootfsPreparer for AlpinePreparer {
             "sh",
             &[
                 "-c",
-                &format!("echo 'nameserver 8.8.8.8' > {}/etc/resolv.conf", minirootfs),
+                &format!(
+                    "echo 'nameserver {}' >> {}/etc/resolv.conf",
+                    BBRIDGE_IP, minirootfs
+                ),
             ],
             true,
         )?;
@@ -216,7 +219,7 @@ impl RootfsPreparer for AlpinePreparer {
                 &minirootfs,
                 "sh",
                 "-c",
-                &format!("echo 'auto eth0\niface eth0 inet static\n  address {}\n  netmask 255.255.255.0\n  gateway 172.16.0.1\n' > /etc/network/interfaces", GUEST_IP),
+                "echo 'auto eth0\niface eth0 inet dhcp' > /etc/network/interfaces",
             ],
             true,
         )?;

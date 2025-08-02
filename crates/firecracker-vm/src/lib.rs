@@ -8,6 +8,7 @@ use crate::{config::get_config_dir, types::VmOptions};
 mod command;
 mod config;
 pub mod constants;
+mod dnsmasq;
 mod firecracker;
 mod guest;
 mod network;
@@ -75,6 +76,7 @@ pub fn setup(options: &VmOptions) -> Result<()> {
     let arch = command::run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     network::setup_network()?;
+
     firecracker::configure(&logfile, &kernel, &rootfs, &arch, &options, distro)?;
 
     if distro != Distro::NixOS {

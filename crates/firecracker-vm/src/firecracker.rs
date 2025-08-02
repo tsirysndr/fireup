@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use crate::command::run_command;
 
-const NIXOS_BOOT_ARGS: &str = "init=/nix/store/pq529c6dd6x5vaxak4vpyxrv17ydvnwr-nixos-system-nixos-firecracker-25.05.802216.55d1f923c480/init root=/dev/vda ro console=ttyS0 reboot=k panic=1";
+const NIXOS_BOOT_ARGS: &str = "init=/nix/store/w1yqjd8sswh8zj9sz2v76dpw3llzkg5k-nixos-system-nixos-firecracker-25.05.802216.55d1f923c480/init root=/dev/vda ro console=ttyS0 reboot=k panic=1 ip=dhcp";
 
 pub fn configure(
     logfile: &str,
@@ -61,7 +61,7 @@ fn configure_logger(logfile: &str) -> Result<()> {
 
 fn setup_boot_source(kernel: &str, arch: &str, is_nixos: bool, options: &VmOptions) -> Result<()> {
     println!("[+] Setting boot source...");
-    let mut boot_args = "console=ttyS0 reboot=k panic=1 pci=off".to_string();
+    let mut boot_args = "console=ttyS0 reboot=k panic=1 pci=off ip=dhcp".to_string();
     if arch == "aarch64" {
         boot_args = format!("keep_bootcon {}", boot_args);
     }

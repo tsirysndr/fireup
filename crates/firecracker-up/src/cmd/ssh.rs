@@ -1,7 +1,8 @@
 use crate::{command::run_command, config::get_config_dir};
 use anyhow::Error;
-use firecracker_vm::constants::GUEST_IP;
 use glob::glob;
+
+const GUEST_IP: &str = "vm0.firecracker.local";
 
 pub fn ssh() -> Result<(), Error> {
     let app_dir = get_config_dir()?;
