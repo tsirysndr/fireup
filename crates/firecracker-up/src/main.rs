@@ -28,9 +28,9 @@ fn cli() -> Command {
     Command::new("fireup")
         .version(env!("CARGO_PKG_VERSION"))
         .about(&banner)
-        .subcommand(
-            Command::new("init").about("Create a new Firecracker MicroVM configuration: fire.toml"),
-        )
+        .subcommand(Command::new("init").about(
+            "Create a new Firecracker MicroVM configuration `fire.toml` in the current directory",
+        ))
         .subcommand(
             Command::new("up")
                 .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
