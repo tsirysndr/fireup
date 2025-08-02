@@ -1,38 +1,12 @@
 use std::thread;
 
 use anyhow::Error;
-use firecracker_prepare::Distro;
+use firecracker_vm::types::VmOptions;
 use owo_colors::OwoColorize;
 
 use crate::command::run_command;
 
-#[derive(Default, Clone)]
-pub struct UpOptions {
-    pub debian: Option<bool>,
-    pub alpine: Option<bool>,
-    pub ubuntu: Option<bool>,
-    pub nixos: Option<bool>,
-    pub vcpu: u16,
-    pub memory: u16,
-}
-
-impl Into<Distro> for UpOptions {
-    fn into(self) -> Distro {
-        if self.debian.unwrap_or(false) {
-            Distro::Debian
-        } else if self.alpine.unwrap_or(false) {
-            Distro::Alpine
-        } else if self.nixos.unwrap_or(false) {
-            Distro::NixOS
-        } else if self.ubuntu.unwrap_or(true) {
-            Distro::Ubuntu
-        } else {
-            panic!("No valid distribution option provided.");
-        }
-    }
-}
-
-pub fn up(options: UpOptions) -> Result<(), Error> {
+pub fn up(options: VmOptions) -> Result<(), Error> {
     check_kvm_support()?;
 
     firecracker_process::start()?;
@@ -46,7 +20,7 @@ pub fn up(options: UpOptions) -> Result<(), Error> {
     }
 
     firecracker_prepare::prepare(options.clone().into())?;
-    firecracker_vm::setup(options.clone().into(), options.vcpu, options.memory)?;
+    firecracker_vm::setup(&options)?;
     Ok(())
 }
 

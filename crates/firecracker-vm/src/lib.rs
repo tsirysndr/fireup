@@ -3,7 +3,7 @@ use firecracker_prepare::Distro;
 use owo_colors::OwoColorize;
 use std::fs;
 
-use crate::config::get_config_dir;
+use crate::{config::get_config_dir, types::VmOptions};
 
 mod command;
 mod config;
@@ -11,8 +11,10 @@ pub mod constants;
 mod firecracker;
 mod guest;
 mod network;
+pub mod types;
 
-pub fn setup(distro: Distro, vcpu: u16, memory: u16) -> Result<()> {
+pub fn setup(options: &VmOptions) -> Result<()> {
+    let distro: Distro = options.clone().into();
     let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
 
     let logfile = format!("{}/firecracker.log", app_dir);
@@ -73,7 +75,7 @@ pub fn setup(distro: Distro, vcpu: u16, memory: u16) -> Result<()> {
     let arch = command::run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     network::setup_network()?;
-    firecracker::configure(&logfile, &kernel, &rootfs, &arch, vcpu, memory, distro)?;
+    firecracker::configure(&logfile, &kernel, &rootfs, &arch, &options, distro)?;
 
     if distro != Distro::NixOS {
         guest::configure_guest_network(&key_name)?;

@@ -1,4 +1,5 @@
 use crate::constants::{API_SOCKET, FC_MAC, TAP_DEV};
+use crate::types::VmOptions;
 use anyhow::Result;
 use firecracker_prepare::Distro;
 use serde_json::json;
@@ -14,15 +15,14 @@ pub fn configure(
     kernel: &str,
     rootfs: &str,
     arch: &str,
-    vcpu: u16,
-    memory: u16,
+    options: &VmOptions,
     distro: Distro,
 ) -> Result<()> {
     configure_logger(logfile)?;
-    setup_boot_source(kernel, arch, distro == Distro::NixOS)?;
+    setup_boot_source(kernel, arch, distro == Distro::NixOS, &options)?;
     setup_rootfs(rootfs)?;
     setup_network_interface()?;
-    setup_vcpu_and_memory(vcpu, memory)?;
+    setup_vcpu_and_memory(options.vcpu, options.memory)?;
 
     // Wait before starting instance
     sleep(Duration::from_millis(15));
@@ -59,7 +59,7 @@ fn configure_logger(logfile: &str) -> Result<()> {
     Ok(())
 }
 
-fn setup_boot_source(kernel: &str, arch: &str, is_nixos: bool) -> Result<()> {
+fn setup_boot_source(kernel: &str, arch: &str, is_nixos: bool, options: &VmOptions) -> Result<()> {
     println!("[+] Setting boot source...");
     let mut boot_args = "console=ttyS0 reboot=k panic=1 pci=off".to_string();
     if arch == "aarch64" {
@@ -70,8 +70,15 @@ fn setup_boot_source(kernel: &str, arch: &str, is_nixos: bool) -> Result<()> {
         boot_args = NIXOS_BOOT_ARGS.into();
     }
 
+    if let Some(args) = &options.bootargs {
+        boot_args = args.clone();
+    }
+
     let payload = json!({
-        "kernel_image_path": kernel,
+        "kernel_image_path": match &options.vmlinux {
+            Some(path) => path.clone(),
+            None => kernel.into(),
+        },
         "boot_args": boot_args
     });
     println!("{}", payload.to_string());

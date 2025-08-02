@@ -1,15 +1,9 @@
 use anyhow::Result;
-use clap::{arg, Command};
+use clap::{arg, Arg, Command};
+use firecracker_vm::types::VmOptions;
 use owo_colors::OwoColorize;
 
-use crate::cmd::{
-    down::down,
-    logs::logs,
-    reset::reset,
-    ssh::ssh,
-    status::status,
-    up::{up, UpOptions},
-};
+use crate::cmd::{down::down, logs::logs, reset::reset, ssh::ssh, status::status, up::up};
 
 pub mod cmd;
 pub mod command;
@@ -34,12 +28,20 @@ fn cli() -> Command {
         .about(&banner)
         .subcommand(
             Command::new("up")
-                .arg(arg!(--debian "Prepare Debian rootfs").default_value("false"))
-                .arg(arg!(--alpine "Prepare Alpine rootfs").default_value("false"))
-                .arg(arg!(--nixos "Prepare NixOS rootfs").default_value("false"))
-                .arg(arg!(--ubuntu "Prepare Ubuntu rootfs").default_value("true"))
+                .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
+                .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
+                .arg(arg!(--nixos "Prepare NixOS MicroVM").default_value("false"))
+                .arg(arg!(--ubuntu "Prepare Ubuntu MicroVM").default_value("true"))
                 .arg(arg!(--vcpu <n> "Number of vCPUs"))
                 .arg(arg!(--memory <m> "Memory size in MiB"))
+                .arg(arg!(--vmlinux <path> "Path to the kernel image"))
+                .arg(arg!(--rootfs <path> "Path to the root filesystem image"))
+                .arg(
+                    Arg::new("boot-args")
+                        .long("boot-args")
+                        .value_name("ARGS")
+                        .help("Override boot arguments"),
+                )
                 .about("Start Firecracker MicroVM"),
         )
         .subcommand(Command::new("down").about("Stop Firecracker MicroVM"))
@@ -56,12 +58,20 @@ fn cli() -> Command {
         )
         .subcommand(Command::new("ssh").about("SSH into the Firecracker MicroVM"))
         .subcommand(Command::new("reset").about("Reset the Firecracker MicroVM"))
-        .arg(arg!(--debian "Prepare Debian rootfs").default_value("false"))
-        .arg(arg!(--alpine "Prepare Alpine rootfs").default_value("false"))
-        .arg(arg!(--nixos "Prepare NixOS rootfs").default_value("false"))
-        .arg(arg!(--ubuntu "Prepare Ubuntu rootfs").default_value("true"))
+        .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
+        .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
+        .arg(arg!(--nixos "Prepare NixOS MicroVM").default_value("false"))
+        .arg(arg!(--ubuntu "Prepare Ubuntu MicroVM").default_value("true"))
         .arg(arg!(--vcpu <n> "Number of vCPUs"))
         .arg(arg!(--memory <m> "Memory size in MiB"))
+        .arg(arg!(--vmlinux <path> "Path to the kernel image"))
+        .arg(arg!(--rootfs <path> "Path to the root filesystem image"))
+        .arg(
+            Arg::new("boot-args")
+                .long("boot-args")
+                .value_name("ARGS")
+                .help("Override boot arguments"),
+        )
 }
 
 fn main() -> Result<()> {
@@ -77,13 +87,19 @@ fn main() -> Result<()> {
                 .get_one::<String>("memory")
                 .map(|s| s.parse::<u16>().unwrap())
                 .unwrap_or(512);
-            let options = UpOptions {
+            let vmlinux = matches.get_one::<String>("vmlinux").cloned();
+            let rootfs = matches.get_one::<String>("rootfs").cloned();
+            let bootargs = matches.get_one::<String>("boot-args").cloned();
+            let options = VmOptions {
                 debian: args.get_one::<bool>("debian").copied(),
                 alpine: args.get_one::<bool>("alpine").copied(),
                 ubuntu: args.get_one::<bool>("ubuntu").copied(),
                 nixos: args.get_one::<bool>("nixos").copied(),
                 vcpu,
                 memory,
+                vmlinux,
+                rootfs,
+                bootargs,
             };
             up(options)?
         }
@@ -108,14 +124,20 @@ fn main() -> Result<()> {
                 .get_one::<String>("memory")
                 .map(|s| s.parse::<u16>().unwrap())
                 .unwrap_or(if nixos { 2048 } else { 512 });
+            let vmlinux = matches.get_one::<String>("vmlinux").cloned();
+            let rootfs = matches.get_one::<String>("rootfs").cloned();
+            let bootargs = matches.get_one::<String>("boot-args").cloned();
 
-            let options = UpOptions {
+            let options = VmOptions {
                 debian: Some(debian),
                 alpine: Some(alpine),
                 ubuntu: Some(ubuntu),
                 nixos: Some(nixos),
                 vcpu,
                 memory,
+                vmlinux,
+                rootfs,
+                bootargs,
             };
             up(options)?
         }
