@@ -32,6 +32,7 @@ sudo apt-get install fireup
 ```
 
 ## Subcommands
+- `init`: Initializes a new configuration file `fire.toml` in the current directory.
 - `up`: Starts the Firecracker microVM, preparing assets and configuring the network if needed.
 - `down`: Stops the running Firecracker microVM.
 - `status`: Checks the status of the Firecracker microVM (running, stopped, or errored).

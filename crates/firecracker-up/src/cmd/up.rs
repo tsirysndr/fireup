@@ -1,6 +1,7 @@
 use std::thread;
 
 use anyhow::Error;
+use fire_config::read_config;
 use firecracker_vm::types::VmOptions;
 use owo_colors::OwoColorize;
 
@@ -8,6 +9,11 @@ use crate::command::run_command;
 
 pub fn up(options: VmOptions) -> Result<(), Error> {
     check_kvm_support()?;
+
+    let options = match read_config() {
+        Ok(config) => VmOptions::from(config),
+        Err(_) => options.clone(),
+    };
 
     firecracker_process::start()?;
 

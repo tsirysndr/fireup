@@ -1,6 +1,6 @@
 [package]
 name = "fireup"
-version = "0.2.0"
+version = "0.3.0"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,6 +11,7 @@ anyhow = "1.0.98"
 firecracker-vm = { path = "../firecracker-vm" }
 firecracker-prepare = { path = "../firecracker-prepare" }
 firecracker-process = { path = "../firecracker-process" }
+fire-config = { path = "../fire-config" }
 clap = "4.5.41"
 owo-colors = "4.2.2"
 glob = "0.3.2"

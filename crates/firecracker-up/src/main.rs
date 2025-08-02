@@ -3,7 +3,9 @@ use clap::{arg, Arg, Command};
 use firecracker_vm::types::VmOptions;
 use owo_colors::OwoColorize;
 
-use crate::cmd::{down::down, logs::logs, reset::reset, ssh::ssh, status::status, up::up};
+use crate::cmd::{
+    down::down, init::init, logs::logs, reset::reset, ssh::ssh, status::status, up::up,
+};
 
 pub mod cmd;
 pub mod command;
@@ -26,6 +28,9 @@ fn cli() -> Command {
     Command::new("fireup")
         .version(env!("CARGO_PKG_VERSION"))
         .about(&banner)
+        .subcommand(
+            Command::new("init").about("Create a new Firecracker MicroVM configuration: fire.toml"),
+        )
         .subcommand(
             Command::new("up")
                 .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
@@ -78,6 +83,7 @@ fn main() -> Result<()> {
     let matches = cli().get_matches();
 
     match matches.subcommand() {
+        Some(("init", _)) => init()?,
         Some(("up", args)) => {
             let vcpu = matches
                 .get_one::<String>("vcpu")

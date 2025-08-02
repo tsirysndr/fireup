@@ -2,6 +2,7 @@ use std::fs;
 
 use anyhow::Result;
 use owo_colors::OwoColorize;
+use serde::{Deserialize, Serialize};
 
 use crate::command::{run_command, run_command_with_stdout_inherit};
 
@@ -13,7 +14,7 @@ pub mod ssh;
 
 pub const GUEST_IP: &str = "172.16.0.2";
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
 pub enum Distro {
     Debian,
     Alpine,
