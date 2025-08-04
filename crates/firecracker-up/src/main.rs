@@ -1,8 +1,7 @@
 use anyhow::Result;
 use clap::{arg, Arg, Command};
 use firecracker_vm::{
-    constants::{BRIDGE_DEV, FC_MAC, FIRECRACKER_SOCKET, TAP_DEV},
-    types::VmOptions,
+    constants::{BRIDGE_DEV, TAP_DEV}, mac::generate_unique_mac, types::VmOptions
 };
 use owo_colors::OwoColorize;
 
@@ -50,14 +49,12 @@ fn cli() -> Command {
                     Arg::new("mac-address")
                         .long("mac-address")
                         .value_name("MAC")
-                        .default_value(FC_MAC)
                         .help("MAC address for the network interface"),
                 )
                 .arg(
                     Arg::new("api-socket")
                         .long("api-socket")
                         .value_name("path")
-                        .default_value(FIRECRACKER_SOCKET)
                         .help("Path to the Firecracker API socket"),
                 )
                 .arg(
@@ -71,11 +68,8 @@ fn cli() -> Command {
         .subcommand(
             Command::new("down")
                 .arg(
-                    Arg::new("api-socket")
-                        .long("api-socket")
-                        .value_name("path")
-                        .default_value(FIRECRACKER_SOCKET)
-                        .help("Path to the Firecracker API socket"),
+                   arg!([name] "Name of the Firecracker MicroVM to reset")
+                        .required(false),
                 )
                 .about("Stop Firecracker MicroVM"),
         )
@@ -90,15 +84,14 @@ fn cli() -> Command {
                 )
                 .about("View the logs of the Firecracker MicroVM"),
         )
-        .subcommand(Command::new("ssh").about("SSH into the Firecracker MicroVM"))
+        .subcommand(Command::new("ssh")
+        .arg(arg!([name] "Name of the Firecracker MicroVM to SSH into"))
+        .about("SSH into the Firecracker MicroVM"))
         .subcommand(
             Command::new("reset")
                 .arg(
-                    Arg::new("api-socket")
-                        .long("api-socket")
-                        .value_name("path")
-                        .default_value(FIRECRACKER_SOCKET)
-                        .help("Path to the Firecracker API socket"),
+                    arg!([name] "Name of the Firecracker MicroVM to reset")
+                        .required(false),
                 )
                 .about("Reset the Firecracker MicroVM"),
         )
@@ -116,14 +109,12 @@ fn cli() -> Command {
             Arg::new("mac-address")
                 .long("mac-address")
                 .value_name("MAC")
-                .default_value(FC_MAC)
                 .help("MAC address for the network interface"),
         )
         .arg(
             Arg::new("api-socket")
                 .long("api-socket")
                 .value_name("path")
-                .default_value(FIRECRACKER_SOCKET)
                 .help("Path to the Firecracker API socket"),
         )
         .arg(
@@ -134,8 +125,14 @@ fn cli() -> Command {
         )
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let matches = cli().get_matches();
+
+    let pool = firecracker_state::create_connection_pool().await?;
+    let vm_name = names::Generator::default().next().unwrap();
+    let default_socket = format!("/tmp/firecracker-{}.sock", vm_name);
+    let default_mac = generate_unique_mac();
 
     match matches.subcommand() {
         Some(("init", _)) => init()?,
@@ -153,8 +150,8 @@ fn main() -> Result<()> {
             let bootargs = matches.get_one::<String>("boot-args").cloned();
             let bridge = args.get_one::<String>("bridge").cloned().unwrap();
             let tap = args.get_one::<String>("tap").cloned().unwrap();
-            let api_socket = args.get_one::<String>("api-socket").cloned().unwrap();
-            let mac_address = args.get_one::<String>("mac-address").cloned().unwrap();
+            let api_socket = args.get_one::<String>("api-socket").cloned().unwrap_or(default_socket);
+            let mac_address = args.get_one::<String>("mac-address").cloned().unwrap_or(default_mac);
             let options = VmOptions {
                 debian: args.get_one::<bool>("debian").copied(),
                 alpine: args.get_one::<bool>("alpine").copied(),
@@ -170,10 +167,11 @@ fn main() -> Result<()> {
                 api_socket,
                 mac_address,
             };
-            up(options)?
+            up(options).await?
         }
         Some(("down", args)) => {
-            let api_socket = args.get_one::<String>("api-socket").cloned().unwrap();
+            let name = args.get_one::<String>("name").cloned().unwrap();
+            let api_socket = format!("/tmp/firecracker-{}.sock", name);
             down(&VmOptions {
                 api_socket,
                 ..Default::default()
@@ -184,9 +182,13 @@ fn main() -> Result<()> {
             let follow = args.get_one::<bool>("follow").copied().unwrap_or(false);
             logs(follow)?;
         }
-        Some(("ssh", _)) => ssh()?,
+        Some(("ssh", args)) => {
+            let name = args.get_one::<String>("name").cloned();
+            ssh(pool, name).await?
+        },
         Some(("reset", args)) => {
-            let api_socket = args.get_one::<String>("api-socket").cloned().unwrap();
+            let name = args.get_one::<String>("name").cloned().unwrap();
+            let api_socket = format!("/tmp/firecracker-{}.sock", name);
             reset(VmOptions {
                 api_socket,
                 ..Default::default()
@@ -210,8 +212,8 @@ fn main() -> Result<()> {
             let bootargs = matches.get_one::<String>("boot-args").cloned();
             let bridge = matches.get_one::<String>("bridge").cloned().unwrap();
             let tap = matches.get_one::<String>("tap").cloned().unwrap();
-            let api_socket = matches.get_one::<String>("api-socket").cloned().unwrap();
-            let mac_address = matches.get_one::<String>("mac-address").cloned().unwrap();
+            let api_socket = matches.get_one::<String>("api-socket").cloned().unwrap_or(default_socket);
+            let mac_address = matches.get_one::<String>("mac-address").cloned().unwrap_or(default_mac);
 
             let options = VmOptions {
                 debian: Some(debian),
@@ -228,7 +230,7 @@ fn main() -> Result<()> {
                 api_socket,
                 mac_address,
             };
-            up(options)?
+            up(options).await?
         }
     }
 

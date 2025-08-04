@@ -1,6 +1,5 @@
 use crate::{
     constants::{BRIDGE_IP, MASK_SHORT},
-    dnsmasq::setup_dnsmasq,
     types::VmOptions,
 };
 use anyhow::{anyhow, Context, Result};
@@ -116,8 +115,6 @@ pub fn setup_network(config: &VmOptions) -> Result<()> {
     }
 
     run_command("iptables", &["-P", "FORWARD", "ACCEPT"], true)?;
-
-    setup_dnsmasq(config)?;
 
     Ok(())
 }
