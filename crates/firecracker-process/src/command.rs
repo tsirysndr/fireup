@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Error, Result};
+use owo_colors::OwoColorize;
 use std::{
     process::{Command, Output, Stdio},
     thread,
@@ -49,7 +50,7 @@ pub fn run_command(command: &str, args: &[&str], use_sudo: bool) -> Result<Outpu
     Ok(output)
 }
 
-pub fn run_command_in_background(command: &str, args: &[&str], use_sudo: bool) -> Result<()> {
+pub fn run_command_in_background(command: &str, args: &[&str], use_sudo: bool) -> Result<u32> {
     let mut cmd = if use_sudo {
         if !has_sudo() && !is_root() {
             return Err(anyhow!(
@@ -71,6 +72,8 @@ pub fn run_command_in_background(command: &str, args: &[&str], use_sudo: bool) -
     let command_owned = command.to_string();
     let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
 
+    let (tx, rx) = std::sync::mpsc::channel::<u32>();
+
     thread::spawn(move || {
         let mut child = cmd
             .args(&args_owned)
@@ -80,11 +83,24 @@ pub fn run_command_in_background(command: &str, args: &[&str], use_sudo: bool) -
             .spawn()
             .with_context(|| format!("Failed to execute {}", command_owned))?;
 
+        let pid = child.id();
+        tx.send(pid)
+            .with_context(|| format!("Failed to send PID for command {}", command_owned))?;
+        println!(
+            "[+] Started command {} with PID {}",
+            command_owned.bright_cyan(),
+            pid.bright_cyan()
+        );
+
         child
             .wait()
             .with_context(|| format!("Failed to wait for command {}", command_owned))?;
         Ok::<(), Error>(())
     });
 
-    Ok(())
+    let pid = rx
+        .recv()
+        .with_context(|| format!("Failed to receive PID for command {}", command))?;
+
+    Ok(pid)
 }

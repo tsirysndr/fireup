@@ -13,12 +13,16 @@ pub fn setup_dnsmasq(config: &VmOptions) -> Result<(), Error> {
         process::exit(1);
     }
 
-    if std::path::Path::new(DNSMASQ_CONFIG_PATH).exists() {
-        println!("[✓] DNSMasq configuration already exists. Skipping setup.");
-        return Ok(());
-    }
     println!("[+] Setting up DNSMasq configuration...");
     run_command("mkdir", &["-p", "/etc/dnsmasq.d"], true)?;
+
+    let name = config
+        .api_socket
+        .split('/')
+        .last()
+        .ok_or_else(|| anyhow::anyhow!("Failed to extract VM name from API socket path"))?
+        .replace("firecracker-", "")
+        .replace(".sock", "");
 
     let dnsmasq_config: &str = &format!(
         r#"
@@ -28,12 +32,12 @@ domain=firecracker.local
 dhcp-option=option:router,{}
 dhcp-option=option:dns-server,{}
 dhcp-range=172.16.0.2,172.16.0.150,12h
-dhcp-host={},vm0
+dhcp-host={},{}
 server=8.8.8.8
 server=8.8.4.4
 server=1.1.1.1
 "#,
-        &config.bridge, BRIDGE_IP, BRIDGE_IP, &config.mac_address
+        &config.bridge, BRIDGE_IP, BRIDGE_IP, &config.mac_address, name
     );
 
     run_command(

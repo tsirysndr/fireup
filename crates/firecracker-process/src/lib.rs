@@ -5,11 +5,11 @@ use crate::command::{run_command, run_command_in_background};
 
 pub mod command;
 
-pub fn start(config: &VmOptions) -> Result<()> {
+pub fn start(config: &VmOptions) -> Result<u32> {
     stop(config)?;
     println!("[+] Starting Firecracker...");
-    run_command_in_background("firecracker", &["--api-sock", &config.api_socket], true)?;
-    Ok(())
+    let pid = run_command_in_background("firecracker", &["--api-sock", &config.api_socket], true)?;
+    Ok(pid)
 }
 
 pub fn stop(config: &VmOptions) -> Result<()> {
