@@ -1,6 +1,7 @@
 use anyhow::Error;
+use firecracker_vm::types::VmOptions;
 
-pub fn down() -> Result<(), Error> {
-    firecracker_process::stop()?;
+pub fn down(options: &VmOptions) -> Result<(), Error> {
+    firecracker_process::stop(options)?;
     Ok(())
 }

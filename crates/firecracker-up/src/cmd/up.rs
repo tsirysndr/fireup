@@ -15,7 +15,7 @@ pub fn up(options: VmOptions) -> Result<(), Error> {
         Err(_) => options.clone(),
     };
 
-    firecracker_process::start()?;
+    firecracker_process::start(&options)?;
 
     loop {
         thread::sleep(std::time::Duration::from_secs(1));

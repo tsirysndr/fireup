@@ -1,53 +1,58 @@
 use crate::{
-    constants::{BRIDGE_DEV, BRIDGE_IP, MASK_SHORT, TAP_DEV},
+    constants::{BRIDGE_IP, MASK_SHORT},
     dnsmasq::setup_dnsmasq,
+    types::VmOptions,
 };
 use anyhow::{anyhow, Context, Result};
 use serde_json::Value;
 
 use crate::command::run_command;
 
-fn check_tap_exists() -> bool {
-    run_command("ip", &["link", "show", TAP_DEV], false)
+fn check_tap_exists(config: &VmOptions) -> bool {
+    run_command("ip", &["link", "show", &config.tap], false)
         .map(|output| output.status.success())
         .unwrap_or(false)
 }
 
-fn check_bridge_exists() -> bool {
-    run_command("ip", &["link", "show", BRIDGE_DEV], false)
+fn check_bridge_exists(config: &VmOptions) -> bool {
+    run_command("ip", &["link", "show", &config.bridge], false)
         .map(|output| output.status.success())
         .unwrap_or(false)
 }
 
-pub fn setup_network() -> Result<()> {
-    if check_tap_exists() {
-        run_command("ip", &["addr", "flush", "dev", TAP_DEV], true)?;
+pub fn setup_network(config: &VmOptions) -> Result<()> {
+    if check_tap_exists(config) {
+        run_command("ip", &["addr", "flush", "dev", &config.tap], true)?;
     }
 
-    if check_tap_exists() && check_bridge_exists() {
+    if check_tap_exists(config) && check_bridge_exists(config) {
         println!("[✓] Network already configured. Skipping setup.");
         return Ok(());
     }
 
-    if !check_tap_exists() {
-        println!("[+] Configuring {}...", TAP_DEV);
+    if !check_tap_exists(config) {
+        println!("[+] Configuring {}...", &config.tap);
         run_command(
             "ip",
-            &["tuntap", "add", "dev", TAP_DEV, "mode", "tap"],
+            &["tuntap", "add", "dev", &config.tap, "mode", "tap"],
             true,
         )?;
-        run_command("ip", &["link", "set", "dev", TAP_DEV, "up"], true)?;
+        run_command("ip", &["link", "set", "dev", &config.tap, "up"], true)?;
     }
 
-    if !check_bridge_exists() {
-        println!("[+] Configuring {}...", BRIDGE_DEV);
+    if !check_bridge_exists(config) {
+        println!("[+] Configuring {}...", config.bridge);
         run_command(
             "ip",
-            &["link", "add", "name", BRIDGE_DEV, "type", "bridge"],
+            &["link", "add", "name", &config.bridge, "type", "bridge"],
             true,
         )?;
-        run_command("ip", &["link", "set", BRIDGE_DEV, "up"], true)?;
-        run_command("ip", &["link", "set", TAP_DEV, "master", BRIDGE_DEV], true)?;
+        run_command("ip", &["link", "set", &config.bridge, "up"], true)?;
+        run_command(
+            "ip",
+            &["link", "set", &config.tap, "master", &config.bridge],
+            true,
+        )?;
         run_command(
             "ip",
             &[
@@ -55,7 +60,7 @@ pub fn setup_network() -> Result<()> {
                 "add",
                 &format!("{}{}", BRIDGE_IP, MASK_SHORT),
                 "dev",
-                BRIDGE_DEV,
+                &config.bridge,
             ],
             true,
         )?;
@@ -112,7 +117,7 @@ pub fn setup_network() -> Result<()> {
 
     run_command("iptables", &["-P", "FORWARD", "ACCEPT"], true)?;
 
-    setup_dnsmasq()?;
+    setup_dnsmasq(config)?;
 
     Ok(())
 }

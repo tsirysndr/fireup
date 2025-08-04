@@ -169,6 +169,7 @@ name = "firecracker-process"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "firecracker-vm",
  "libc",
  "owo-colors",
 ]

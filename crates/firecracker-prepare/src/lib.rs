@@ -12,7 +12,7 @@ pub mod downloader;
 pub mod rootfs;
 pub mod ssh;
 
-const BBRIDGE_IP: &str = "172.16.0.1";
+const BRIDGE_IP: &str = "172.16.0.1";
 
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
 pub enum Distro {
@@ -133,7 +133,7 @@ impl RootfsPreparer for AlpinePreparer {
                 "-c",
                 &format!(
                     "echo 'nameserver {}' >> {}/etc/resolv.conf",
-                    BBRIDGE_IP, minirootfs
+                    BRIDGE_IP, minirootfs
                 ),
             ],
             true,

@@ -75,7 +75,7 @@ pub fn setup(options: &VmOptions) -> Result<()> {
         .to_string();
     let arch = command::run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
-    network::setup_network()?;
+    network::setup_network(options)?;
 
     firecracker::configure(&logfile, &kernel, &rootfs, &arch, &options, distro)?;
 

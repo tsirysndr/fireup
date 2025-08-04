@@ -2,14 +2,11 @@ use std::process;
 
 use anyhow::Error;
 
-use crate::{
-    command::run_command,
-    constants::{BRIDGE_DEV, BRIDGE_IP, FC_MAC},
-};
+use crate::{command::run_command, constants::BRIDGE_IP, types::VmOptions};
 
 pub const DNSMASQ_CONFIG_PATH: &str = "/etc/dnsmasq.d/firecracker.conf";
 
-pub fn setup_dnsmasq() -> Result<(), Error> {
+pub fn setup_dnsmasq(config: &VmOptions) -> Result<(), Error> {
     println!("[+] Checking if DNSMasq is installed...");
     if !dnsmasq_is_installed()? {
         println!("[✗] DNSMasq is not installed. Please install it first.");
@@ -36,7 +33,7 @@ server=8.8.8.8
 server=8.8.4.4
 server=1.1.1.1
 "#,
-        BRIDGE_DEV, BRIDGE_IP, BRIDGE_IP, FC_MAC
+        &config.bridge, BRIDGE_IP, BRIDGE_IP, &config.mac_address
     );
 
     run_command(

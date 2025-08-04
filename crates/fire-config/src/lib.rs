@@ -12,6 +12,10 @@ pub struct Vm {
     pub vmlinux: Option<String>,
     pub rootfs: Option<String>,
     pub boot_args: Option<String>,
+    pub bridge: Option<String>,
+    pub tap: Option<String>,
+    pub api_socket: Option<String>,
+    pub mac: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,6 +34,10 @@ impl Default for FireConfig {
                 vmlinux: None,
                 rootfs: None,
                 boot_args: None,
+                bridge: None,
+                tap: None,
+                api_socket: None,
+                mac: None,
             },
         }
     }

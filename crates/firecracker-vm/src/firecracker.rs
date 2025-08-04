@@ -1,4 +1,3 @@
-use crate::constants::{API_SOCKET, FC_MAC, TAP_DEV};
 use crate::types::VmOptions;
 use anyhow::Result;
 use firecracker_prepare::Distro;
@@ -18,23 +17,23 @@ pub fn configure(
     options: &VmOptions,
     distro: Distro,
 ) -> Result<()> {
-    configure_logger(logfile)?;
+    configure_logger(logfile, options)?;
     setup_boot_source(kernel, arch, distro == Distro::NixOS, &options)?;
-    setup_rootfs(rootfs)?;
-    setup_network_interface()?;
-    setup_vcpu_and_memory(options.vcpu, options.memory)?;
+    setup_rootfs(rootfs, options)?;
+    setup_network_interface(options)?;
+    setup_vcpu_and_memory(options.vcpu, options.memory, &options.api_socket)?;
 
     // Wait before starting instance
     sleep(Duration::from_millis(15));
 
-    start_microvm()?;
+    start_microvm(options)?;
 
     // Wait for VM to boot
     sleep(Duration::from_secs(2));
     Ok(())
 }
 
-fn configure_logger(logfile: &str) -> Result<()> {
+fn configure_logger(logfile: &str, options: &VmOptions) -> Result<()> {
     println!("[+] Configuring logger...");
     let payload = json!({
         "log_path": logfile,
@@ -49,7 +48,7 @@ fn configure_logger(logfile: &str) -> Result<()> {
             "-X",
             "PUT",
             "--unix-socket",
-            API_SOCKET,
+            &options.api_socket,
             "--data",
             &payload.to_string(),
             "http://localhost/logger",
@@ -89,7 +88,7 @@ fn setup_boot_source(kernel: &str, arch: &str, is_nixos: bool, options: &VmOptio
             "-X",
             "PUT",
             "--unix-socket",
-            API_SOCKET,
+            &options.api_socket,
             "--data",
             &payload.to_string(),
             "http://localhost/boot-source",
@@ -99,7 +98,7 @@ fn setup_boot_source(kernel: &str, arch: &str, is_nixos: bool, options: &VmOptio
     Ok(())
 }
 
-fn setup_rootfs(rootfs: &str) -> Result<()> {
+fn setup_rootfs(rootfs: &str, options: &VmOptions) -> Result<()> {
     println!("[+] Setting rootfs...");
     let payload = json!({
         "drive_id": "rootfs",
@@ -114,7 +113,7 @@ fn setup_rootfs(rootfs: &str) -> Result<()> {
             "-X",
             "PUT",
             "--unix-socket",
-            API_SOCKET,
+            &options.api_socket,
             "--data",
             &payload.to_string(),
             "http://localhost/drives/rootfs",
@@ -124,13 +123,13 @@ fn setup_rootfs(rootfs: &str) -> Result<()> {
     Ok(())
 }
 
-fn setup_network_interface() -> Result<()> {
+fn setup_network_interface(options: &VmOptions) -> Result<()> {
     println!("[+] Setting network interface...");
     let iface = "eth0";
     let payload = json!({
         "iface_id": iface,
-        "guest_mac": FC_MAC,
-        "host_dev_name": TAP_DEV
+        "guest_mac": &options.mac_address,
+        "host_dev_name": &options.tap
     });
 
     println!("{}", payload.to_string());
@@ -141,7 +140,7 @@ fn setup_network_interface() -> Result<()> {
             "-X",
             "PUT",
             "--unix-socket",
-            API_SOCKET,
+            &options.api_socket,
             "--data",
             &payload.to_string(),
             &format!("http://localhost/network-interfaces/{}", iface),
@@ -151,7 +150,7 @@ fn setup_network_interface() -> Result<()> {
     Ok(())
 }
 
-fn start_microvm() -> Result<()> {
+fn start_microvm(options: &VmOptions) -> Result<()> {
     println!("[+] Starting microVM...");
     let payload = json!({
         "action_type": "InstanceStart"
@@ -163,7 +162,7 @@ fn start_microvm() -> Result<()> {
             "-X",
             "PUT",
             "--unix-socket",
-            API_SOCKET,
+            &options.api_socket,
             "--data",
             &payload.to_string(),
             "http://localhost/actions",
@@ -173,7 +172,7 @@ fn start_microvm() -> Result<()> {
     Ok(())
 }
 
-fn setup_vcpu_and_memory(n: u16, memory: u16) -> Result<()> {
+fn setup_vcpu_and_memory(n: u16, memory: u16, api_socket: &str) -> Result<()> {
     println!("[+] Setting vCPU and memory...");
     let payload = json!({
         "vcpu_count": n,
@@ -188,7 +187,7 @@ fn setup_vcpu_and_memory(n: u16, memory: u16) -> Result<()> {
             "-X",
             "PUT",
             "--unix-socket",
-            API_SOCKET,
+            api_socket,
             "--data",
             &payload.to_string(),
             "http://localhost/machine-config",

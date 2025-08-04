@@ -1,26 +1,25 @@
 use anyhow::Result;
+use firecracker_vm::types::VmOptions;
 
 use crate::command::{run_command, run_command_in_background};
 
 pub mod command;
 
-pub const FIRECRACKER_SOCKET: &str = "/tmp/firecracker.sock";
-
-pub fn start() -> Result<()> {
-    stop()?;
+pub fn start(config: &VmOptions) -> Result<()> {
+    stop(config)?;
     println!("[+] Starting Firecracker...");
-    run_command_in_background("firecracker", &["--api-sock", FIRECRACKER_SOCKET], true)?;
+    run_command_in_background("firecracker", &["--api-sock", &config.api_socket], true)?;
     Ok(())
 }
 
-pub fn stop() -> Result<()> {
+pub fn stop(config: &VmOptions) -> Result<()> {
     if !is_running() {
         println!("[!] Firecracker is not running.");
-        run_command("rm", &["-rf", FIRECRACKER_SOCKET], true)?;
+        run_command("rm", &["-rf", &config.api_socket], true)?;
         return Ok(());
     }
     run_command("killall", &["-s", "KILL", "firecracker"], true)?;
-    run_command("rm", &["-rf", FIRECRACKER_SOCKET], true)?;
+    run_command("rm", &["-rf", &config.api_socket], true)?;
     println!("[+] Firecracker has been stopped.");
     Ok(())
 }

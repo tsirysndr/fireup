@@ -1,10 +1,11 @@
 use anyhow::Error;
+use firecracker_vm::types::VmOptions;
 use glob::glob;
 use owo_colors::OwoColorize;
 
 use crate::cmd::down::down;
 
-pub fn reset() -> Result<(), Error> {
+pub fn reset(options: VmOptions) -> Result<(), Error> {
     println!(
         "Are you sure you want to reset? This will remove all ext4 files. Type '{}' to confirm:",
         "yes".bright_green()
@@ -20,7 +21,7 @@ pub fn reset() -> Result<(), Error> {
         return Ok(());
     }
 
-    down()?;
+    down(&options)?;
 
     let app_dir = crate::config::get_config_dir()?;
     let ext4_file = glob(format!("{}/*.ext4", app_dir).as_str())
