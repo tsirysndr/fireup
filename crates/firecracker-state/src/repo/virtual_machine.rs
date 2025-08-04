@@ -43,10 +43,11 @@ pub async fn find_by_project_dir(
 pub async fn create(pool: Pool<Sqlite>, vm: VirtualMachine) -> Result<(), Error> {
     let id = xid::new().to_string();
     let project_dir = match Path::exists(Path::new("fire.toml")) {
-      true => Some(std::env::current_dir()?.display().to_string()),
-      false => None,
+        true => Some(std::env::current_dir()?.display().to_string()),
+        false => None,
     };
-    sqlx::query("INSERT INTO virtual_machines (
+    sqlx::query(
+        "INSERT INTO virtual_machines (
       name,
       id,
       project_dir,
@@ -59,22 +60,23 @@ pub async fn create(pool: Pool<Sqlite>, vm: VirtualMachine) -> Result<(), Error>
       distro,
       pid,
       status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(&vm.name)
-        .bind(&id)
-        .bind(project_dir)
-        .bind(&vm.bridge)
-        .bind(&vm.tap)
-        .bind(&vm.api_socket)
-        .bind(&vm.mac_address)
-        .bind(&vm.vcpu)
-        .bind(&vm.memory)
-        .bind(&vm.distro)
-        .bind(&vm.pid)
-        .bind("RUNNING")
-        .execute(&pool)
-        .await
-        .with_context(|| "Failed to create virtual machine")?;
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&vm.name)
+    .bind(&id)
+    .bind(project_dir)
+    .bind(&vm.bridge)
+    .bind(&vm.tap)
+    .bind(&vm.api_socket)
+    .bind(&vm.mac_address)
+    .bind(&vm.vcpu)
+    .bind(&vm.memory)
+    .bind(&vm.distro)
+    .bind(&vm.pid)
+    .bind("RUNNING")
+    .execute(&pool)
+    .await
+    .with_context(|| "Failed to create virtual machine")?;
     Ok(())
 }
 

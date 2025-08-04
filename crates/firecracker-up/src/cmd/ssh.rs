@@ -15,9 +15,13 @@ pub async fn ssh(pool: Pool<Sqlite>, name: Option<String>) -> Result<(), Error> 
             let vm = repo::virtual_machine::find_by_project_dir(pool, &current_dir).await?;
             match vm {
                 Some(vm) => format!("{}.firecracker.local", vm.name),
-                None => return Err(Error::msg("No virtual machine found with the given name or project directory.")),
+                None => {
+                    return Err(Error::msg(
+                        "No virtual machine found with the given name or project directory.",
+                    ))
+                }
             }
-        },
+        }
     };
     let app_dir = get_config_dir()?;
     let private_key = glob(format!("{}/id_rsa", app_dir).as_str())
