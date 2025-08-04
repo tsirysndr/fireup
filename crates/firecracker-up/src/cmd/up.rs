@@ -7,7 +7,7 @@ use owo_colors::OwoColorize;
 
 use crate::command::run_command;
 
-pub fn up(options: VmOptions) -> Result<(), Error> {
+pub async fn up(options: VmOptions) -> Result<(), Error> {
     check_kvm_support()?;
 
     let options = match read_config() {
@@ -15,7 +15,7 @@ pub fn up(options: VmOptions) -> Result<(), Error> {
         Err(_) => options.clone(),
     };
 
-    firecracker_process::start(&options)?;
+    let pid = firecracker_process::start(&options)?;
 
     loop {
         thread::sleep(std::time::Duration::from_secs(1));
@@ -26,7 +26,7 @@ pub fn up(options: VmOptions) -> Result<(), Error> {
     }
 
     firecracker_prepare::prepare(options.clone().into())?;
-    firecracker_vm::setup(&options)?;
+    firecracker_vm::setup(&options, pid).await?;
     Ok(())
 }
 
