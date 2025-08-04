@@ -20,7 +20,8 @@ pub async fn setup(options: &VmOptions, pid: u32) -> Result<()> {
     let distro: Distro = options.clone().into();
     let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
 
-    let name = options.api_socket
+    let name = options
+        .api_socket
         .split('/')
         .last()
         .ok_or_else(|| anyhow!("Failed to extract VM name from API socket path"))?
@@ -108,18 +109,22 @@ pub async fn setup(options: &VmOptions, pid: u32) -> Result<()> {
         Distro::NixOS => "nixos".into(),
         Distro::Ubuntu => "ubuntu".into(),
     };
-    repo::virtual_machine::create(pool, VirtualMachine {
-        vcpu: options.vcpu,
-        memory: options.memory,
-        api_socket: options.api_socket.clone(),
-        bridge: options.bridge.clone(),
-        tap: options.tap.clone(),
-        mac_address: options.mac_address.clone(),
-        name: name.clone(),
-        pid: Some(pid),
-        distro,
-        ..Default::default()
-    }).await?;
+    repo::virtual_machine::create(
+        pool,
+        VirtualMachine {
+            vcpu: options.vcpu,
+            memory: options.memory,
+            api_socket: options.api_socket.clone(),
+            bridge: options.bridge.clone(),
+            tap: options.tap.clone(),
+            mac_address: options.mac_address.clone(),
+            name: name.clone(),
+            pid: Some(pid),
+            distro,
+            ..Default::default()
+        },
+    )
+    .await?;
 
     println!("[✓] MicroVM booted and network is configured 🎉");
 
