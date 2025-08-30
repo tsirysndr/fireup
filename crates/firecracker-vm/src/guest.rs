@@ -6,17 +6,29 @@ use anyhow::Result;
 
 pub fn configure_guest_network(key_name: &str) -> Result<()> {
     println!("[+] Configuring network in guest...");
-    run_command(
-        "ssh",
-        &[
-            "-i",
-            key_name,
-            "-o",
-            "StrictHostKeyChecking=no",
-            &format!("root@{}", GUEST_IP),
-            &format!("echo 'nameserver {}' > /etc/resolv.conf", BRIDGE_IP),
-        ],
-        false,
-    )?;
+    const MAX_RETRIES: u32 = 20;
+    let mut retries = 0;
+    loop {
+        if run_command(
+            "ssh",
+            &[
+                "-i",
+                key_name,
+                "-o",
+                "StrictHostKeyChecking=no",
+                &format!("root@{}", GUEST_IP),
+                &format!("echo 'nameserver {}' > /etc/resolv.conf", BRIDGE_IP),
+            ],
+            false,
+        )
+        .is_ok()
+            || retries >= MAX_RETRIES
+        {
+            break;
+        }
+        println!("[-] Waiting for ssh to be available...");
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        retries += 1;
+    }
     Ok(())
 }
