@@ -1,0 +1,39 @@
+import { Directory, DirectoryID } from "../deps.ts";
+import { dag } from "../sdk/client.gen.ts";
+
+export const getDirectory = async (
+  src: string | Directory | undefined = "."
+) => {
+  if (src instanceof Directory) {
+    return src;
+  }
+  if (typeof src === "string") {
+    try {
+      const directory = dag.loadDirectoryFromID(src as DirectoryID);
+      await directory.id();
+      return directory;
+    } catch (_) {
+      return dag.host
+        ? dag.host().directory(src)
+        : dag.currentModule().source().directory(src);
+    }
+  }
+  return dag.host
+    ? dag.host().directory(src)
+    : dag.currentModule().source().directory(src);
+};
+
+export function buildRustFlags(): string {
+  let rustflags = "";
+  switch (Deno.env.get("TARGET")) {
+    case "aarch64-unknown-linux-gnu":
+      rustflags = `-C linker=aarch64-linux-gnu-gcc`;
+      break;
+    case "armv7-unknown-linux-gnueabihf":
+      rustflags = `-C linker=arm-linux-gnueabihf-gcc`;
+      break;
+    default:
+      break;
+  }
+  return rustflags;
+}
