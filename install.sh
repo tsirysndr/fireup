@@ -92,17 +92,17 @@ if command -v sudo >/dev/null 2>&1; then
   SUDO=sudo
 fi
 
-$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/firecracker /usr/sbin/firecracker
+$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/firecracker-${VERSION}-${ARCH} /usr/sbin/firecracker
 
-$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/jailer /usr/local/bin/jailer
+$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/jailer-${VERSION}-${ARCH} /usr/local/bin/jailer
 
-$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/cpu-template-helper /usr/local/bin/cpu-template-helper
+$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/cpu-template-helper-${VERSION}-${ARCH} /usr/local/bin/cpu-template-helper
 
-$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/rebase-snap /usr/local/bin/rebase-snap
+$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/rebase-snap-${VERSION}-${ARCH} /usr/local/bin/rebase-snap
 
-$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/seccompiler-bin /usr/local/bin/seccompiler-bin
+$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/seccompiler-bin-${VERSION}-${ARCH} /usr/local/bin/seccompiler-bin
 
-$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/snapshot-editor /usr/local/bin/snapshot-editor
+$SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/snapshot-editor-${VERSION}-${ARCH} /usr/local/bin/snapshot-editor
 
 detect_os
 
