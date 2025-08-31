@@ -104,11 +104,33 @@ $SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/seccompiler-bin /usr/loca
 
 $SUDO cp $HOME/.firecracker/release-${VERSION}-${ARCH}/snapshot-editor /usr/local/bin/snapshot-editor
 
+
+function detect_os() {
+  # Determine the operating system
+  OS=$(uname -s)
+  if [ "$OS" = "Linux" ]; then
+      # Determine the CPU architecture
+      ARCH=$(uname -m)
+      if [ "$ARCH" = "aarch64" ]; then
+          ASSET_NAME="aarch64-unknown-linux-gnu.tar.gz"
+      elif [ "$ARCH" = "x86_64" ]; then
+          ASSET_NAME="_x86_64-unknown-linux-gnu.tar.gz"
+      else
+          echo "Unsupported architecture: $ARCH"
+          exit 1
+      fi
+  else
+      echo "Unsupported operating system: $OS"
+      echo "This script only supports Linux."
+      exit 1
+  fi;
+}
+
 detect_os
 
 RELEASE_URL="https://api.github.com/repos/tsirysndr/fireup/releases/latest"
 
-DOWNLOAD_URL=$(curl -sSL "$RELEASE_URL" | grep -o "browser_download_url.*fireup-.*$ASSET_NAME\"" | cut -d ' ' -f 2)
+DOWNLOAD_URL=$(curl -sSL "$RELEASE_URL" | grep -o "browser_download_url.*fireup_.*$ASSET_NAME\"" | cut -d ' ' -f 2)
 
 DOWNLOAD_URL=`echo $DOWNLOAD_URL | tr -d '\"'`
 
