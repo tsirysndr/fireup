@@ -1,0 +1,18 @@
+[Unit] 
+Description=CoreDNS DNS server 
+Documentation=https://coredns.io 
+After=network.target
+
+[Service] 
+ExecStart=/usr/sbin/coredns -conf /etc/coredns/Corefile 
+Restart=on-failure 
+RestartSec=5 
+LimitNOFILE=1048576 
+LimitNPROC=512 
+ProtectSystem=strict 
+ReadWritePaths=/etc/coredns 
+NoNewPrivileges=true 
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install] 
+WantedBy=multi-user.target

@@ -8,7 +8,8 @@ use firecracker_vm::{
 use owo_colors::OwoColorize;
 
 use crate::cmd::{
-    down::down, init::init, logs::logs, reset::reset, ssh::ssh, status::status, up::up,
+    down::down, init::init, logs::logs, ps::list_all_running_instances, reset::reset, ssh::ssh,
+    status::status, up::up,
 };
 
 pub mod cmd;
@@ -35,6 +36,7 @@ fn cli() -> Command {
         .subcommand(Command::new("init").about(
             "Create a new Firecracker MicroVM configuration `fire.toml` in the current directory",
         ))
+        .subcommand(Command::new("ps").about("List all running Firecracker MicroVM instances"))
         .subcommand(
             Command::new("up")
                 .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
@@ -134,6 +136,7 @@ async fn main() -> Result<()> {
 
     match matches.subcommand() {
         Some(("init", _)) => init()?,
+        Some(("ps", _)) => list_all_running_instances()?,
         Some(("up", args)) => {
             let vcpu = matches
                 .get_one::<String>("vcpu")

@@ -9,11 +9,12 @@ use crate::{config::get_config_dir, types::VmOptions};
 mod command;
 mod config;
 pub mod constants;
-mod dnsmasq;
+mod coredns;
 mod firecracker;
 mod guest;
 pub mod mac;
 mod network;
+mod nextdhcp;
 pub mod types;
 
 pub async fn setup(options: &VmOptions, pid: u32) -> Result<()> {
@@ -94,12 +95,13 @@ pub async fn setup(options: &VmOptions, pid: u32) -> Result<()> {
     let arch = command::run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     network::setup_network(options)?;
-    dnsmasq::setup_dnsmasq(options)?;
+    coredns::setup_coredns(options)?;
+    nextdhcp::setup_nextdhcp(options)?;
 
     firecracker::configure(&logfile, &kernel, &rootfs, &arch, &options, distro)?;
 
     if distro != Distro::NixOS {
-        let guest_ip = format!("{}.firecracker.local", name);
+        let guest_ip = format!("{}.firecracker", name);
         guest::configure_guest_network(&key_name, &guest_ip)?;
     }
     let pool = firecracker_state::create_connection_pool().await?;

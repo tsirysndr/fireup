@@ -6,7 +6,7 @@ use sqlx::{Pool, Sqlite};
 
 pub async fn ssh(pool: Pool<Sqlite>, name: Option<String>) -> Result<(), Error> {
     let guest_ip = match name {
-        Some(name) => format!("{}.firecracker.local", name),
+        Some(name) => format!("{}.firecracker", name),
         None => {
             let current_dir = std::env::current_dir()
                 .map_err(|e| Error::msg(format!("Failed to get current directory: {}", e)))?
@@ -14,7 +14,7 @@ pub async fn ssh(pool: Pool<Sqlite>, name: Option<String>) -> Result<(), Error> 
                 .to_string();
             let vm = repo::virtual_machine::find_by_project_dir(pool, &current_dir).await?;
             match vm {
-                Some(vm) => format!("{}.firecracker.local", vm.name),
+                Some(vm) => format!("{}.firecracker", vm.name),
                 None => {
                     return Err(Error::msg(
                         "No virtual machine found with the given name or project directory.",
