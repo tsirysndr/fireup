@@ -67,7 +67,6 @@ pub fn restart_nextdhcp() -> Result<(), Error> {
 
     run_command("systemctl", &["enable", "nextdhcp"], true)?;
     run_command("systemctl", &["stop", "nextdhcp"], true)?;
-    run_command("rm", &["-f", "/etc/nextdhcp/172.16.0.1.db"], true)?;
     run_command("systemctl", &["start", "nextdhcp"], true)?;
     println!("[✓] Nextdhcp started successfully.");
     Ok(())
