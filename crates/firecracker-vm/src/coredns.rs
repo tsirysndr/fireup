@@ -1,34 +1,43 @@
-use std::process;
+use std::{process, thread};
 
 use anyhow::Error;
 
-use crate::{command::run_command, types::VmOptions};
+use crate::{command::run_command, mqttc, types::VmOptions};
 
 pub const COREDNS_CONFIG_PATH: &str = "/etc/coredns/Corefile";
 pub const COREDNS_SERVICE_TEMPLATE: &str = include_str!("./systemd/coredns.service");
 
 pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
-    println!("[+] Checking if CoreDNS is installed...");
-    if !coredns_is_installed()? {
-        // TODO: install it automatically
-        println!("[✗] CoreDNS is not installed. Please install it first to /usr/sbin.");
-        process::exit(1);
-    }
+    let api_socket = config.api_socket.clone();
+    thread::spawn(move || {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(async {
+            println!("[+] Checking if CoreDNS is installed...");
+            if !coredns_is_installed()? {
+                // TODO: install it automatically
+                println!("[✗] CoreDNS is not installed. Please install it first to /usr/sbin.");
+                process::exit(1);
+            }
 
-    let name = config
-        .api_socket
-        .split('/')
-        .last()
-        .ok_or_else(|| anyhow::anyhow!("Failed to extract VM name from API socket path"))?
-        .replace("firecracker-", "")
-        .replace(".sock", "");
+            let message = mqttc::wait_for_mqtt_message("REQUEST").await?;
+            let ip_addr = message
+                .split_whitespace()
+                .nth(2)
+                .ok_or_else(|| anyhow::anyhow!("Failed to extract IP address from MQTT message"))?;
 
-    let hosts = vec![format!("172.16.0.2 {}.firecracker", name)];
+            let name = api_socket
+                .split('/')
+                .last()
+                .ok_or_else(|| anyhow::anyhow!("Failed to extract VM name from API socket path"))?
+                .replace("firecracker-", "")
+                .replace(".sock", "");
 
-    let hosts = hosts.join("\n      ");
+            let hosts = vec![format!("{} {}.firecracker", ip_addr, name)];
 
-    let coredns_config: &str = &format!(
-        r#"
+            let hosts = hosts.join("\n      ");
+
+            let coredns_config: &str = &format!(
+                r#"
   firecracker:53 {{
     hosts {{
       172.16.0.1 br.firecracker
@@ -63,30 +72,35 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
     health
   }}
   "#,
-        hosts
-    );
+                hosts
+            );
 
-    run_command(
-        "sh",
-        &[
-            "-c",
-            &format!("echo '{}' > {}", coredns_config, COREDNS_CONFIG_PATH),
-        ],
-        true,
-    )?;
+            run_command(
+                "sh",
+                &[
+                    "-c",
+                    &format!("echo '{}' > {}", coredns_config, COREDNS_CONFIG_PATH),
+                ],
+                true,
+            )?;
 
-    run_command(
-        "sh",
-        &[
-            "-c",
-            &format!(
-                "echo '{}' > /etc/systemd/system/coredns.service",
-                COREDNS_SERVICE_TEMPLATE
-            ),
-        ],
-        true,
-    )?;
-    restart_coredns()?;
+            run_command(
+                "sh",
+                &[
+                    "-c",
+                    &format!(
+                        "echo '{}' > /etc/systemd/system/coredns.service",
+                        COREDNS_SERVICE_TEMPLATE
+                    ),
+                ],
+                true,
+            )?;
+            restart_coredns()?;
+
+            Ok::<(), Error>(())
+        })?;
+        Ok::<(), Error>(())
+    });
 
     Ok(())
 }

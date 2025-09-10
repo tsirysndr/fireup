@@ -7,7 +7,7 @@ use crate::{command::run_command, types::VmOptions};
 pub const NEXTDHCP_CONFIG_PATH: &str = "/etc/nextdhcp/Dhcpfile";
 pub const NEXTDHCP_SERVICE_TEMPLATE: &str = include_str!("./systemd/nextdhcp.service");
 
-pub fn setup_nextdhcp(config: &VmOptions) -> Result<(), Error> {
+pub fn setup_nextdhcp(_config: &VmOptions) -> Result<(), Error> {
     println!("[+] Checking if NextDHCP is installed...");
     if !nextdhcp_is_installed()? {
         // TODO: install it automatically
@@ -15,23 +15,27 @@ pub fn setup_nextdhcp(config: &VmOptions) -> Result<(), Error> {
         process::exit(1);
     }
 
-    let nextdhcp_config: &str = &format!(
-        r#"
-172.16.0.1/24 {{
+    let nextdhcp_config: &str = r#"
+172.16.0.1/24 {
   lease 1h
-
-  static {} 172.16.0.2
 
   range 172.16.0.2 172.16.0.150
 
-  option {{
+  mqtt {
+    name default
+    broker tcp://localhost:1883
+
+    topic /dhcp/hwaddr/{hwaddr}
+    payload "{msgtype} {hwaddr} {requestedip} {state}"
+    qos 1
+  }
+
+  option {
     router 172.16.0.1
     nameserver 172.16.0.1
-    }}
-  }}
-"#,
-        &config.mac_address
-    );
+    }
+  }
+"#;
 
     run_command(
         "sh",

@@ -13,6 +13,8 @@ mod coredns;
 mod firecracker;
 mod guest;
 pub mod mac;
+mod mosquitto;
+mod mqttc;
 mod network;
 mod nextdhcp;
 pub mod types;
@@ -95,6 +97,7 @@ pub async fn setup(options: &VmOptions, pid: u32) -> Result<()> {
     let arch = command::run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     network::setup_network(options)?;
+    mosquitto::setup_mosquitto(options)?;
     coredns::setup_coredns(options)?;
     nextdhcp::setup_nextdhcp(options)?;
 
