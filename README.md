@@ -15,6 +15,10 @@
 - **Cross-Architecture Support**: Supports x86_64 and aarch64 with automatic detection.
 - **Robust Error Handling**: Clear error messages using anyhow for easy debugging.
 
+## Prerequisites
+- [CoreDNS](https://coredns.io/) (for DNS resolution)
+- [NextDHCP](https://github.com/nextdhcp/nextdhcp) (for DHCP services)
+
 ## Installation
 
 You can install `fireup` using bash:
