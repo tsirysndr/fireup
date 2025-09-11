@@ -58,6 +58,19 @@ pub fn run_command_in_background(command: &str, args: &[&str], use_sudo: bool) -
                 command
             ));
         }
+
+        let status = Command::new("sudo")
+            .arg("-v")
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .context("failed to run 'sudo -v' for credential validation")?;
+
+        if !status.success() {
+            return Err(anyhow!("'sudo -v' failed (wrong password or sudo policy)"));
+        }
+
         let mut c = Command::new("sudo");
         c.arg(command);
 

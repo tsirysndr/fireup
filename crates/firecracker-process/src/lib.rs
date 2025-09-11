@@ -1,4 +1,4 @@
-use std::process;
+use std::{process, thread};
 
 use anyhow::Result;
 use firecracker_state::repo;
@@ -19,6 +19,19 @@ pub async fn start(config: &VmOptions) -> Result<u32> {
     stop(Some(name)).await?;
     println!("[+] Starting Firecracker...");
     let pid = run_command_in_background("firecracker", &["--api-sock", &config.api_socket], true)?;
+
+    let mut attempts = 0;
+    while !std::path::Path::new(&config.api_socket).exists() {
+        if attempts >= 100 {
+            println!(
+                "[!] Timed out waiting for Firecracker to start. Please check the logs."
+            );
+            process::exit(1);
+        }
+        attempts += 1;
+        thread::sleep(std::time::Duration::from_millis(500));
+    }
+
     Ok(pid)
 }
 
