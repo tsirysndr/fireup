@@ -11,7 +11,7 @@ pub async fn wait_for_mqtt_message(msgtype: &str) -> Result<String, Error> {
     mqttoptions.set_keep_alive(Duration::from_secs(5));
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    client.subscribe("/dhcp/#", QoS::AtMostOnce).await?;
+    client.subscribe("/dhcp/#", QoS::AtLeastOnce).await?;
 
     while let Ok(notification) = eventloop.poll().await {
         if let rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish)) = notification {
@@ -23,13 +23,19 @@ pub async fn wait_for_mqtt_message(msgtype: &str) -> Result<String, Error> {
                 })?;
 
                 if !ip_addr.is_empty() {
-                    println!("[+] Pinging IP address: {}", ip_addr);
-                    if run_command("sh", &["-c", &format!("ping -c 1 {}", ip_addr)], false).is_ok()
-                    {
-                        println!("[+] IP address {} is reachable.", ip_addr);
-                        return Ok(payload_str);
+                    let mut attempts = 0;
+                    while attempts < 3 {
+                        println!("[+] Pinging IP address: {}", ip_addr);
+                        if run_command("sh", &["-c", &format!("ping -c 1 {}", ip_addr)], false)
+                            .is_ok()
+                        {
+                            println!("[+] IP address {} is reachable.", ip_addr);
+                            return Ok(payload_str);
+                        }
+                        println!("[-] IP address {} is not reachable yet.", ip_addr);
+                        attempts += 1;
+                        tokio::time::sleep(Duration::from_millis(500)).await;
                     }
-                    println!("[-] IP address {} is not reachable yet.", ip_addr);
                 }
             }
         }
