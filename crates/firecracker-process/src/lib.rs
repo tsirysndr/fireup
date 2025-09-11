@@ -23,9 +23,7 @@ pub async fn start(config: &VmOptions) -> Result<u32> {
     let mut attempts = 0;
     while !std::path::Path::new(&config.api_socket).exists() {
         if attempts >= 100 {
-            println!(
-                "[!] Timed out waiting for Firecracker to start. Please check the logs."
-            );
+            println!("[!] Timed out waiting for Firecracker to start. Please check the logs.");
             process::exit(1);
         }
         attempts += 1;
