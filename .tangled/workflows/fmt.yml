@@ -9,8 +9,12 @@ dependencies:
     - cargo
     - rustc
     - rustfmt
+    - gcc
 
 steps:
   - name: "cargo fmt"
     command: |
        cargo fmt --all --check
+  - name: "cargo test"
+    command: |
+       cargo test

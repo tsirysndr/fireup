@@ -7,7 +7,7 @@ on:
     branches:
       - main
 jobs:
-  fmt:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -23,3 +23,6 @@ jobs:
         run: |
           type cargo
           cargo fmt --all --check
+      - name: Run tests
+        run: |
+          cargo test
