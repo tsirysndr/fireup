@@ -1,7 +1,7 @@
 use fire_config::FireConfig;
 use firecracker_prepare::Distro;
 
-use crate::constants::{BRIDGE_DEV, FC_MAC, FIRECRACKER_SOCKET, TAP_DEV};
+use crate::constants::{BRIDGE_DEV, FC_MAC, FIRECRACKER_SOCKET};
 
 #[derive(Default, Clone)]
 pub struct VmOptions {
@@ -34,7 +34,7 @@ impl From<FireConfig> for VmOptions {
             rootfs: vm.rootfs,
             bootargs: vm.boot_args,
             bridge: vm.bridge.unwrap_or(BRIDGE_DEV.into()),
-            tap: vm.tap.unwrap_or(TAP_DEV.into()),
+            tap: vm.tap.unwrap_or("".into()),
             api_socket: vm.api_socket.unwrap_or(FIRECRACKER_SOCKET.into()),
             mac_address: vm.mac.unwrap_or(FC_MAC.into()),
         }

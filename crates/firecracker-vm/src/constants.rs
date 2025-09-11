@@ -1,4 +1,3 @@
-pub const TAP_DEV: &str = "tap0";
 pub const BRIDGE_DEV: &str = "br0";
 pub const FIRECRACKER_SOCKET: &str = "/tmp/firecracker.sock";
 pub const BRIDGE_IP: &str = "172.16.0.1";

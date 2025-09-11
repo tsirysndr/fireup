@@ -11,3 +11,4 @@ anyhow = "1.0.98"
 libc = "0.2.174"
 owo-colors = "4.2.2"
 firecracker-vm = { path = "../firecracker-vm" }
+firecracker-state = { path = "../firecracker-state" }

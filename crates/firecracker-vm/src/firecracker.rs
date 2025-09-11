@@ -58,7 +58,12 @@ fn configure_logger(logfile: &str, options: &VmOptions) -> Result<()> {
     Ok(())
 }
 
-fn setup_boot_source(kernel: &str, arch: &str, is_nixos: bool, options: &VmOptions) -> Result<()> {
+fn setup_boot_source(
+    kernel: &str,
+    arch: &str,
+    is_nixos: bool,
+    options: &VmOptions,
+) -> Result<String> {
     println!("[+] Setting boot source...");
     let mut boot_args = "console=ttyS0 reboot=k panic=1 pci=off ip=dhcp".to_string();
     if arch == "aarch64" {
@@ -95,7 +100,7 @@ fn setup_boot_source(kernel: &str, arch: &str, is_nixos: bool, options: &VmOptio
         ],
         true,
     )?;
-    Ok(())
+    Ok(boot_args)
 }
 
 fn setup_rootfs(rootfs: &str, options: &VmOptions) -> Result<()> {
