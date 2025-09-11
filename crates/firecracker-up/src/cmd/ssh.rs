@@ -12,7 +12,7 @@ pub async fn ssh(pool: Pool<Sqlite>, name: Option<String>) -> Result<(), Error> 
                 .map_err(|e| Error::msg(format!("Failed to get current directory: {}", e)))?
                 .display()
                 .to_string();
-            let vm = repo::virtual_machine::find_by_project_dir(pool, &current_dir).await?;
+            let vm = repo::virtual_machine::find_by_project_dir(&pool, &current_dir).await?;
             match vm {
                 Some(vm) => format!("{}.firecracker", vm.name),
                 None => {

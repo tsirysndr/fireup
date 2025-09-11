@@ -15,6 +15,10 @@ pub struct VirtualMachine {
     pub tap: String,
     pub api_socket: String,
     pub project_dir: Option<String>,
+    pub ip_address: Option<String>,
+    pub vmlinux: Option<String>,
+    pub rootfs: Option<String>,
+    pub bootargs: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub created_at: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]

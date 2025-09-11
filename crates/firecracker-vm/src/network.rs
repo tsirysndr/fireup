@@ -19,6 +19,21 @@ fn check_bridge_exists(config: &VmOptions) -> bool {
         .unwrap_or(false)
 }
 
+fn create_new_tap(config: &VmOptions) -> Result<()> {
+    run_command(
+        "ip",
+        &["tuntap", "add", "dev", &config.tap, "mode", "tap"],
+        true,
+    )?;
+    run_command("ip", &["link", "set", "dev", &config.tap, "up"], true)?;
+    run_command(
+        "ip",
+        &["link", "set", &config.tap, "master", &config.bridge],
+        true,
+    )?;
+    Ok(())
+}
+
 pub fn setup_network(config: &VmOptions) -> Result<()> {
     if check_tap_exists(config) {
         run_command("ip", &["addr", "flush", "dev", &config.tap], true)?;
@@ -27,16 +42,6 @@ pub fn setup_network(config: &VmOptions) -> Result<()> {
     if check_tap_exists(config) && check_bridge_exists(config) {
         println!("[✓] Network already configured. Skipping setup.");
         return Ok(());
-    }
-
-    if !check_tap_exists(config) {
-        println!("[+] Configuring {}...", &config.tap);
-        run_command(
-            "ip",
-            &["tuntap", "add", "dev", &config.tap, "mode", "tap"],
-            true,
-        )?;
-        run_command("ip", &["link", "set", "dev", &config.tap, "up"], true)?;
     }
 
     if !check_bridge_exists(config) {
@@ -49,11 +54,6 @@ pub fn setup_network(config: &VmOptions) -> Result<()> {
         run_command("ip", &["link", "set", &config.bridge, "up"], true)?;
         run_command(
             "ip",
-            &["link", "set", &config.tap, "master", &config.bridge],
-            true,
-        )?;
-        run_command(
-            "ip",
             &[
                 "addr",
                 "add",
@@ -63,6 +63,11 @@ pub fn setup_network(config: &VmOptions) -> Result<()> {
             ],
             true,
         )?;
+    }
+
+    if !check_tap_exists(config) {
+        println!("[+] Configuring {}...", &config.tap);
+        create_new_tap(config)?;
     }
 
     let ip_forward = run_command("cat", &["/proc/sys/net/ipv4/ip_forward"], false)?.stdout;

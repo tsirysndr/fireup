@@ -16,6 +16,42 @@ pub async fn create_connection_pool() -> Result<Pool<Sqlite>, Error> {
     pool.execute(include_str!("../migrations/20250804092946_init.sql"))
         .await?;
 
+    match pool
+        .execute(include_str!("../migrations/20250910164344_ip_address.sql"))
+        .await
+    {
+        Ok(_) => (),
+        Err(e) => {
+            if e.to_string().contains("duplicate column name: ip_address") {
+            } else {
+                return Err(anyhow!("Failed to apply migration: {}", e));
+            }
+        }
+    }
+
+    match pool
+        .execute(include_str!(
+            "../migrations/20250910202353_add_vmlinux_rootfs_bootargs.sql"
+        ))
+        .await
+    {
+        Ok(_) => (),
+        Err(e) => {
+            if e.to_string().contains("duplicate column name: vmlinux")
+                || e.to_string().contains("duplicate column name: rootfs")
+                || e.to_string().contains("duplicate column name: bootargs")
+            {
+            } else {
+                return Err(anyhow!("Failed to apply migration: {}", e));
+            }
+        }
+    }
+
+    pool.execute(include_str!(
+        "../migrations/20250911084132_ensure_unique_columns.sql"
+    ))
+    .await?;
+
     sqlx::query("PRAGMA journal_mode=WAL")
         .execute(&pool)
         .await?;

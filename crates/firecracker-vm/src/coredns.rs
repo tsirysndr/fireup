@@ -1,6 +1,7 @@
 use std::{process, thread};
 
-use anyhow::Error;
+use anyhow::{Context, Error};
+use firecracker_state::repo;
 
 use crate::{command::run_command, mqttc, types::VmOptions};
 
@@ -11,7 +12,7 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
     let api_socket = config.api_socket.clone();
     thread::spawn(move || {
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        runtime.block_on(async {
+        match runtime.block_on(async {
             println!("[+] Checking if CoreDNS is installed...");
             if !coredns_is_installed()? {
                 // TODO: install it automatically
@@ -32,7 +33,18 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
                 .replace("firecracker-", "")
                 .replace(".sock", "");
 
-            let hosts = vec![format!("{} {}.firecracker", ip_addr, name)];
+            std::fs::write(format!("/tmp/firecracker-{}.ip", name), ip_addr)
+                .with_context(|| "Failed to write IP address to file")?;
+
+            let pool = firecracker_state::create_connection_pool().await?;
+            let vms = repo::virtual_machine::all(&pool).await?;
+            let mut hosts = vms
+                .into_iter()
+                .filter(|vm| vm.ip_address.is_some() && vm.name != name)
+                .map(|vm| format!("{} {}.firecracker", vm.ip_address.unwrap(), vm.name))
+                .collect::<Vec<String>>();
+
+            hosts.extend(vec![format!("{} {}.firecracker", ip_addr, name)]);
 
             let hosts = hosts.join("\n      ");
 
@@ -49,7 +61,7 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
   }}
 
   ts.net:53 {{
-    # Forward non-internal queries (e.g., to Google DNS)
+    # Forward non-internal queries (e.g., to Tailscale DNS)
     forward . 100.100.100.100
     # Log and errors for debugging
     log
@@ -98,7 +110,13 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
             restart_coredns()?;
 
             Ok::<(), Error>(())
-        })?;
+        }) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("[✗] Error setting up CoreDNS: {}", e);
+                process::exit(1);
+            }
+        }
         Ok::<(), Error>(())
     });
 
@@ -108,6 +126,7 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
 pub fn restart_coredns() -> Result<(), Error> {
     println!("[+] Starting CoreDNS...");
     run_command("systemctl", &["enable", "coredns"], true)?;
+    run_command("systemctl", &["daemon-reload"], true)?;
     run_command("systemctl", &["restart", "coredns"], true)?;
     println!("[✓] CoreDNS started successfully.");
     Ok(())

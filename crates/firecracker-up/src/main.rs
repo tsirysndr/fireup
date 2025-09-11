@@ -1,20 +1,17 @@
 use anyhow::Result;
 use clap::{arg, Arg, Command};
-use firecracker_vm::{
-    constants::{BRIDGE_DEV, TAP_DEV},
-    mac::generate_unique_mac,
-    types::VmOptions,
-};
+use firecracker_vm::{constants::BRIDGE_DEV, mac::generate_unique_mac, types::VmOptions};
 use owo_colors::OwoColorize;
 
 use crate::cmd::{
-    down::down, init::init, logs::logs, ps::list_all_running_instances, reset::reset, ssh::ssh,
-    status::status, up::up,
+    down::down, init::init, logs::logs, ps::list_all_instances, reset::reset, ssh::ssh,
+    start::start, status::status, stop::stop, up::up,
 };
 
 pub mod cmd;
 pub mod command;
 pub mod config;
+pub mod date;
 
 fn cli() -> Command {
     let banner = format!(
@@ -36,7 +33,27 @@ fn cli() -> Command {
         .subcommand(Command::new("init").about(
             "Create a new Firecracker MicroVM configuration `fire.toml` in the current directory",
         ))
-        .subcommand(Command::new("ps").about("List all running Firecracker MicroVM instances"))
+        .subcommand(
+            Command::new("ps")
+                .alias("list")
+                .arg(arg!(-a --all "Show all Firecracker MicroVM instances").default_value("false"))
+                .about("List all Firecracker MicroVM instances"),
+        )
+        .subcommand(
+            Command::new("start")
+                .arg(arg!(<name> "Name of the Firecracker MicroVM to start").required(true))
+                .about("Start Firecracker MicroVM"),
+        )
+        .subcommand(
+            Command::new("stop")
+                .arg(arg!([name] "Name of the Firecracker MicroVM to stop").required(false))
+                .about("Stop Firecracker MicroVM"),
+        )
+        .subcommand(
+            Command::new("restart")
+                .arg(arg!(<name> "Name of the Firecracker MicroVM to restart").required(true))
+                .about("Restart Firecracker MicroVM"),
+        )
         .subcommand(
             Command::new("up")
                 .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
@@ -48,7 +65,7 @@ fn cli() -> Command {
                 .arg(arg!(--vmlinux <path> "Path to the kernel image"))
                 .arg(arg!(--rootfs <path> "Path to the root filesystem image"))
                 .arg(arg!(--bridge <name> "Name of the bridge interface").default_value(BRIDGE_DEV))
-                .arg(arg!(--tap <name> "Name of the tap interface").default_value(TAP_DEV))
+                .arg(arg!(--tap <name> "Name of the tap interface").default_value(""))
                 .arg(
                     Arg::new("mac-address")
                         .long("mac-address")
@@ -67,14 +84,14 @@ fn cli() -> Command {
                         .value_name("ARGS")
                         .help("Override boot arguments"),
                 )
-                .about("Start Firecracker MicroVM"),
+                .about("Start a new Firecracker MicroVM"),
         )
+        .subcommand(Command::new("down").about("Stop Firecracker MicroVM"))
         .subcommand(
-            Command::new("down")
-                .arg(arg!([name] "Name of the Firecracker MicroVM to reset").required(false))
-                .about("Stop Firecracker MicroVM"),
+            Command::new("status")
+                .arg(arg!([name] "Name of the Firecracker MicroVM to check status").required(false))
+                .about("Check the status of Firecracker MicroVM"),
         )
-        .subcommand(Command::new("status").about("Check the status of Firecracker MicroVM"))
         .subcommand(
             Command::new("logs")
                 .arg(
@@ -104,7 +121,7 @@ fn cli() -> Command {
         .arg(arg!(--vmlinux <path> "Path to the kernel image"))
         .arg(arg!(--rootfs <path> "Path to the root filesystem image"))
         .arg(arg!(--bridge <name> "Name of the bridge interface").default_value(BRIDGE_DEV))
-        .arg(arg!(--tap <name> "Name of the tap interface").default_value(TAP_DEV))
+        .arg(arg!(--tap <name> "Name of the tap interface").default_value(""))
         .arg(
             Arg::new("mac-address")
                 .long("mac-address")
@@ -136,7 +153,23 @@ async fn main() -> Result<()> {
 
     match matches.subcommand() {
         Some(("init", _)) => init()?,
-        Some(("ps", _)) => list_all_running_instances()?,
+        Some(("ps", args)) => {
+            let all = args.get_one::<bool>("all").copied().unwrap_or(false);
+            list_all_instances(all).await?;
+        }
+        Some(("stop", args)) => {
+            let name = args.get_one::<String>("name").cloned().unwrap();
+            stop(&name).await?;
+        }
+        Some(("start", args)) => {
+            let name = args.get_one::<String>("name").cloned().unwrap();
+            start(&name).await?;
+        }
+        Some(("restart", args)) => {
+            let name = args.get_one::<String>("name").cloned().unwrap();
+            stop(&name).await?;
+            start(&name).await?;
+        }
         Some(("up", args)) => {
             let vcpu = matches
                 .get_one::<String>("vcpu")
@@ -176,15 +209,11 @@ async fn main() -> Result<()> {
             };
             up(options).await?
         }
-        Some(("down", args)) => {
-            let name = args.get_one::<String>("name").cloned().unwrap();
-            let api_socket = format!("/tmp/firecracker-{}.sock", name);
-            down(&VmOptions {
-                api_socket,
-                ..Default::default()
-            })?
+        Some(("down", _)) => down().await?,
+        Some(("status", args)) => {
+            let name = args.get_one::<String>("name").cloned();
+            status(name).await?;
         }
-        Some(("status", _)) => status()?,
         Some(("logs", args)) => {
             let follow = args.get_one::<bool>("follow").copied().unwrap_or(false);
             logs(follow)?;
@@ -199,7 +228,8 @@ async fn main() -> Result<()> {
             reset(VmOptions {
                 api_socket,
                 ..Default::default()
-            })?
+            })
+            .await?
         }
         _ => {
             let debian = matches.get_one::<bool>("debian").copied().unwrap_or(false);

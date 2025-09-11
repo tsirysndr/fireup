@@ -19,7 +19,7 @@ mod network;
 mod nextdhcp;
 pub mod types;
 
-pub async fn setup(options: &VmOptions, pid: u32) -> Result<()> {
+pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Result<()> {
     let distro: Distro = options.clone().into();
     let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
 
@@ -114,22 +114,84 @@ pub async fn setup(options: &VmOptions, pid: u32) -> Result<()> {
         Distro::NixOS => "nixos".into(),
         Distro::Ubuntu => "ubuntu".into(),
     };
-    repo::virtual_machine::create(
-        pool,
-        VirtualMachine {
-            vcpu: options.vcpu,
-            memory: options.memory,
-            api_socket: options.api_socket.clone(),
-            bridge: options.bridge.clone(),
-            tap: options.tap.clone(),
-            mac_address: options.mac_address.clone(),
-            name: name.clone(),
-            pid: Some(pid),
-            distro,
-            ..Default::default()
-        },
-    )
-    .await?;
+
+    let ip_file = format!("/tmp/firecracker-{}.ip", name);
+
+    // loop until the IP file is created
+    let mut attempts = 0;
+    while attempts < 30 {
+        println!("[*] Waiting for VM to obtain an IP address...");
+        if fs::metadata(&ip_file).is_ok() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        attempts += 1;
+    }
+
+    let ip_addr = fs::read_to_string(&ip_file)
+        .with_context(|| format!("Failed to read IP address from file: {}", ip_file))?
+        .trim()
+        .to_string();
+
+    fs::remove_file(&ip_file)
+        .with_context(|| format!("Failed to remove IP address file: {}", ip_file))?;
+
+    let project_dir = match fs::metadata("fire.toml").is_ok() {
+        true => Some(std::env::current_dir()?.display().to_string()),
+        false => None,
+    };
+
+    match vm_id {
+        Some(id) => {
+            repo::virtual_machine::update(
+                &pool,
+                &id,
+                VirtualMachine {
+                    vcpu: options.vcpu,
+                    memory: options.memory,
+                    api_socket: options.api_socket.clone(),
+                    bridge: options.bridge.clone(),
+                    tap: options.tap.clone(),
+                    mac_address: options.mac_address.clone(),
+                    name: name.clone(),
+                    pid: Some(pid),
+                    distro,
+                    ip_address: Some(ip_addr.clone()),
+                    status: "RUNNING".into(),
+                    project_dir,
+                    vmlinux: Some(kernel),
+                    rootfs: Some(rootfs),
+                    bootargs: options.bootargs.clone(),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        }
+        None => {
+            repo::virtual_machine::create(
+                &pool,
+                VirtualMachine {
+                    vcpu: options.vcpu,
+                    memory: options.memory,
+                    api_socket: options.api_socket.clone(),
+                    bridge: options.bridge.clone(),
+                    tap: options.tap.clone(),
+                    mac_address: options.mac_address.clone(),
+                    name: name.clone(),
+                    pid: Some(pid),
+                    distro,
+                    ip_address: Some(ip_addr.clone()),
+                    status: "RUNNING".into(),
+                    project_dir,
+                    vmlinux: Some(kernel),
+                    rootfs: Some(rootfs),
+                    bootargs: options.bootargs.clone(),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        }
+    }
 
     println!("[✓] MicroVM booted and network is configured 🎉");
 
