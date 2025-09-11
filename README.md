@@ -18,6 +18,7 @@
 ## Prerequisites
 - [CoreDNS](https://coredns.io/) (for DNS resolution)
 - [NextDHCP](https://github.com/nextdhcp/nextdhcp) (for DHCP services)
+- [Mosquitto](https://mosquitto.org/) (MQTT Server)
 
 ## Installation
 
