@@ -146,6 +146,9 @@
             cargo
             rustc
             rustfmt
+            gcc
+            mosquitto
+            firecracker
           ];
         };
       });
