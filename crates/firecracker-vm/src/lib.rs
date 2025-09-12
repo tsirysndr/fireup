@@ -141,6 +141,16 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
         false => None,
     };
 
+    let kernel = match &options.vmlinux {
+        Some(path) => path.clone(),
+        None => kernel.into(),
+    };
+
+    let kernel = fs::canonicalize(&kernel)
+        .with_context(|| format!("Failed to canonicalize kernel path: {}", kernel))?
+        .display()
+        .to_string();
+
     match vm_id {
         Some(id) => {
             repo::virtual_machine::update(
