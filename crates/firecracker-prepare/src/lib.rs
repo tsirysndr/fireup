@@ -20,6 +20,33 @@ pub enum Distro {
     Alpine,
     Ubuntu,
     NixOS,
+    Fedora,
+    Gentoo,
+    Slackware,
+    Opensuse,
+    OpensuseTumbleweed,
+    Almalinux,
+    RockyLinux,
+    Archlinux,
+}
+
+impl ToString for Distro {
+    fn to_string(&self) -> String {
+        match self {
+            Distro::Debian => "debian".to_string(),
+            Distro::Alpine => "alpine".to_string(),
+            Distro::Ubuntu => "ubuntu".to_string(),
+            Distro::NixOS => "nixos".to_string(),
+            Distro::Fedora => "fedora".to_string(),
+            Distro::Gentoo => "gentoo".to_string(),
+            Distro::Slackware => "slackware".to_string(),
+            Distro::Opensuse => "opensuse".to_string(),
+            Distro::OpensuseTumbleweed => "opensuse-tumbleweed".to_string(),
+            Distro::Almalinux => "almalinux".to_string(),
+            Distro::RockyLinux => "rockylinux".to_string(),
+            Distro::Archlinux => "archlinux".to_string(),
+        }
+    }
 }
 
 pub trait RootfsPreparer {
@@ -31,6 +58,14 @@ pub struct DebianPreparer;
 pub struct AlpinePreparer;
 pub struct UbuntuPreparer;
 pub struct NixOSPreparer;
+pub struct FedoraPreparer;
+pub struct GentooPreparer;
+pub struct SlackwarePreparer;
+pub struct OpensusePreparer;
+pub struct OpensuseTumbleweedPreparer;
+pub struct AlmalinuxPreparer;
+pub struct RockyLinuxPreparer;
+pub struct ArchlinuxPreparer;
 
 impl RootfsPreparer for DebianPreparer {
     fn name(&self) -> &'static str {
@@ -65,6 +100,40 @@ impl RootfsPreparer for DebianPreparer {
                 true,
             )?;
         }
+
+        run_command(
+            "chroot",
+            &[
+                &debootstrap_dir,
+                "sh",
+                "-c",
+                "apt-get install -y systemd-resolved",
+            ],
+            true,
+        )?;
+        run_command(
+            "chroot",
+            &[
+                &debootstrap_dir,
+                "systemctl",
+                "enable",
+                "systemd-networkd",
+                "systemd-resolved",
+            ],
+            true,
+        )?;
+
+        const RESOLVED_CONF: &str = include_str!("./config/resolved.conf");
+        run_command(
+            "chroot",
+            &[
+                &debootstrap_dir,
+                "sh",
+                "-c",
+                &format!("echo '{}' > /etc/systemd/resolved.conf", RESOLVED_CONF),
+            ],
+            true,
+        )?;
 
         let ssh_key_name = "id_rsa";
         run_command(
@@ -101,14 +170,14 @@ impl RootfsPreparer for DebianPreparer {
             )?;
         }
 
-        let ext4_file = format!("{}/debian-{}.ext4", app_dir, arch);
-        if !std::path::Path::new(&ext4_file).exists() {
-            rootfs::create_ext4_filesystem(&debootstrap_dir, &ext4_file, 600)?;
-        }
+        let img_file = format!("{}/debian-rootfs.img", app_dir);
+        rootfs::create_overlay_dirs(&debootstrap_dir)?;
+        rootfs::add_overlay_init(&debootstrap_dir)?;
+        rootfs::create_squashfs(&debootstrap_dir, &img_file)?;
 
         let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
 
-        Ok((kernel_file, ext4_file, ssh_key_file))
+        Ok((kernel_file, img_file, ssh_key_file))
     }
 }
 
@@ -227,14 +296,12 @@ impl RootfsPreparer for AlpinePreparer {
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key(&ssh_key_name, &minirootfs)?;
 
-        let ext4_file = format!("{}/alpine-{}.ext4", app_dir, arch);
-        if !std::path::Path::new(&ext4_file).exists() {
-            rootfs::create_ext4_filesystem(&minirootfs, &ext4_file, 500)?;
-        }
+        let img_file = format!("{}/alpine-rootfs.img", app_dir);
+        rootfs::create_squashfs(&minirootfs, &img_file)?;
 
         let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
 
-        Ok((kernel_file, ext4_file, ssh_key_file))
+        Ok((kernel_file, img_file, ssh_key_file))
     }
 }
 
@@ -249,27 +316,45 @@ impl RootfsPreparer for UbuntuPreparer {
             self.name(),
             arch.bright_green()
         );
-        let (kernel_file, ubuntu_file, ubuntu_version) = downloader::download_files(arch)?;
+        let (kernel_file, ubuntu_file, _ubuntu_version) = downloader::download_files(arch)?;
 
         let squashfs_root_dir = format!("{}/squashfs_root", app_dir);
         rootfs::extract_squashfs(&ubuntu_file, &squashfs_root_dir)?;
 
+        run_command(
+            "chroot",
+            &[
+                &squashfs_root_dir,
+                "systemctl",
+                "enable",
+                "systemd-networkd",
+            ],
+            true,
+        )?;
+
+        const RESOLVED_CONF: &str = include_str!("./config/resolved.conf");
+        run_command(
+            "chroot",
+            &[
+                &squashfs_root_dir,
+                "sh",
+                "-c",
+                &format!("echo '{}' > /etc/systemd/resolved.conf", RESOLVED_CONF),
+            ],
+            true,
+        )?;
+
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key(&ssh_key_name, &squashfs_root_dir)?;
 
-        let ext4_file = format!("{}/ubuntu-{}.ext4", app_dir, ubuntu_version);
-        if !std::path::Path::new(&ext4_file).exists() {
-            rootfs::create_ext4_filesystem(&squashfs_root_dir, &ext4_file, 400)?;
-        } else {
-            println!(
-                "[!] {} already exists, skipping ext4 creation.",
-                ext4_file.bright_yellow()
-            );
-        }
+        let img_file = format!("{}/ubuntu-rootfs.img", app_dir);
+        rootfs::create_overlay_dirs(&squashfs_root_dir)?;
+        rootfs::add_overlay_init(&squashfs_root_dir)?;
+        rootfs::create_squashfs(&squashfs_root_dir, &img_file)?;
 
         let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
 
-        Ok((kernel_file, ext4_file, ssh_key_file))
+        Ok((kernel_file, img_file, ssh_key_file))
     }
 }
 
@@ -285,7 +370,7 @@ impl RootfsPreparer for NixOSPreparer {
             arch.bright_green()
         );
         let kernel_file = downloader::download_kernel(arch)?;
-        let nixos_rootfs = format!("{}/nixosrootfs", app_dir);
+        let nixos_rootfs = format!("{}/nixos-rootfs", app_dir);
         let squashfs_file = format!("{}/nixos-rootfs.squashfs", app_dir);
 
         downloader::download_nixos_rootfs(arch)?;
@@ -294,10 +379,8 @@ impl RootfsPreparer for NixOSPreparer {
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key_nixos(&ssh_key_name, &nixos_rootfs)?;
 
-        let ext4_file = format!("{}/nixos-rootfs.ext4", app_dir);
-        if !std::path::Path::new(&ext4_file).exists() {
-            rootfs::create_ext4_filesystem(&nixos_rootfs, &ext4_file, 5120)?;
-        }
+        let img_file = format!("{}/nixos-rootfs.img", app_dir);
+        rootfs::create_squashfs(&nixos_rootfs, &img_file)?;
 
         let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
 
@@ -307,7 +390,259 @@ impl RootfsPreparer for NixOSPreparer {
             nixos_rootfs.bright_green()
         );
 
-        Ok((kernel_file, ext4_file, ssh_key_file))
+        Ok((kernel_file, img_file, ssh_key_file))
+    }
+}
+
+impl RootfsPreparer for FedoraPreparer {
+    fn name(&self) -> &'static str {
+        "Fedora"
+    }
+
+    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+        println!(
+            "[+] Preparing {} rootfs for {}...",
+            self.name(),
+            arch.bright_green()
+        );
+
+        let kernel_file = downloader::download_kernel(arch)?;
+        let fedora_rootfs = format!("{}/fedora-rootfs", app_dir);
+        let squashfs_file = format!("{}/fedora-rootfs.squashfs", app_dir);
+
+        downloader::download_fedora_rootfs(arch)?;
+        rootfs::extract_squashfs(&squashfs_file, &fedora_rootfs)?;
+
+        let ssh_key_name = "id_rsa";
+        ssh::generate_and_copy_ssh_key(&ssh_key_name, &fedora_rootfs)?;
+
+        let img_file = format!("{}/fedora-rootfs.img", app_dir);
+        rootfs::create_squashfs(&fedora_rootfs, &img_file)?;
+
+        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+
+        println!(
+            "[+] {} rootfs prepared at: {}",
+            self.name(),
+            fedora_rootfs.bright_green()
+        );
+
+        Ok((kernel_file, img_file, ssh_key_file))
+    }
+}
+
+impl RootfsPreparer for GentooPreparer {
+    fn name(&self) -> &'static str {
+        "Gentoo"
+    }
+
+    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+        println!(
+            "[+] Preparing {} rootfs for {}...",
+            self.name(),
+            arch.bright_green()
+        );
+
+        let kernel_file = downloader::download_kernel(arch)?;
+        let gentoo_rootfs = format!("{}/gentoo-rootfs", app_dir);
+        let squashfs_file = format!("{}/gentoo-rootfs.squashfs", app_dir);
+
+        downloader::download_gentoo_rootfs(arch)?;
+        rootfs::extract_squashfs(&squashfs_file, &gentoo_rootfs)?;
+
+        let ssh_key_name = "id_rsa";
+        ssh::generate_and_copy_ssh_key(&ssh_key_name, &gentoo_rootfs)?;
+
+        let img_file = format!("{}/gentoo-rootfs.img", app_dir);
+        rootfs::create_squashfs(&gentoo_rootfs, &img_file)?;
+
+        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+
+        Ok((kernel_file, img_file, ssh_key_file))
+    }
+}
+
+impl RootfsPreparer for SlackwarePreparer {
+    fn name(&self) -> &'static str {
+        "Slackware"
+    }
+
+    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+        println!(
+            "[+] Preparing {} rootfs for {}...",
+            self.name(),
+            arch.bright_green()
+        );
+
+        let kernel_file = downloader::download_kernel(arch)?;
+        let slackware_rootfs = format!("{}/slackware-rootfs", app_dir);
+        let squashfs_file = format!("{}/slackware-rootfs.squashfs", app_dir);
+
+        downloader::download_slackware_rootfs(arch)?;
+        rootfs::extract_squashfs(&squashfs_file, &slackware_rootfs)?;
+
+        let ssh_key_name = "id_rsa";
+        ssh::generate_and_copy_ssh_key(&ssh_key_name, &slackware_rootfs)?;
+
+        let img_file = format!("{}/slackware-rootfs.img", app_dir);
+        rootfs::create_squashfs(&slackware_rootfs, &img_file)?;
+
+        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+
+        Ok((kernel_file, img_file, ssh_key_file))
+    }
+}
+
+impl RootfsPreparer for OpensusePreparer {
+    fn name(&self) -> &'static str {
+        "OpenSUSE (Leap)"
+    }
+
+    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+        println!(
+            "[+] Preparing {} rootfs for {}...",
+            self.name(),
+            arch.bright_green()
+        );
+
+        let kernel_file = downloader::download_kernel(arch)?;
+        let opensuse_rootfs = format!("{}/opensuse-rootfs", app_dir);
+        let squashfs_file = format!("{}/opensuse-rootfs.squashfs", app_dir);
+
+        downloader::download_opensuse_rootfs(arch)?;
+        rootfs::extract_squashfs(&squashfs_file, &opensuse_rootfs)?;
+
+        let ssh_key_name = "id_rsa";
+        ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?;
+
+        let img_file = format!("{}/opensuse-rootfs.img", app_dir);
+        rootfs::create_squashfs(&opensuse_rootfs, &img_file)?;
+
+        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        Ok((kernel_file, img_file, ssh_key_file))
+    }
+}
+
+impl RootfsPreparer for AlmalinuxPreparer {
+    fn name(&self) -> &'static str {
+        "AlmaLinux"
+    }
+
+    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+        println!(
+            "[+] Preparing {} rootfs for {}...",
+            self.name(),
+            arch.bright_green()
+        );
+
+        let kernel_file = downloader::download_kernel(arch)?;
+        let almalinux_rootfs = format!("{}/almalinux-rootfs", app_dir);
+        let squashfs_file = format!("{}/almalinux-rootfs.squashfs", app_dir);
+
+        downloader::download_almalinux_rootfs(arch)?;
+        rootfs::extract_squashfs(&squashfs_file, &almalinux_rootfs)?;
+
+        let ssh_key_name = "id_rsa";
+        ssh::generate_and_copy_ssh_key(&ssh_key_name, &almalinux_rootfs)?;
+
+        let img_file = format!("{}/almalinux-rootfs.img", app_dir);
+        rootfs::create_squashfs(&almalinux_rootfs, &img_file)?;
+
+        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+
+        Ok((kernel_file, img_file, ssh_key_file))
+    }
+}
+
+impl RootfsPreparer for RockyLinuxPreparer {
+    fn name(&self) -> &'static str {
+        "RockyLinux"
+    }
+
+    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+        println!(
+            "[+] Preparing {} rootfs for {}...",
+            self.name(),
+            arch.bright_green()
+        );
+
+        let kernel_file = downloader::download_kernel(arch)?;
+        let rockylinux_rootfs = format!("{}/rockylinux-rootfs", app_dir);
+        let squashfs_file = format!("{}/rockylinux-rootfs.squashfs", app_dir);
+
+        downloader::download_rockylinux_rootfs(arch)?;
+        rootfs::extract_squashfs(&squashfs_file, &rockylinux_rootfs)?;
+
+        let ssh_key_name = "id_rsa";
+        ssh::generate_and_copy_ssh_key(&ssh_key_name, &rockylinux_rootfs)?;
+
+        let img_file = format!("{}/rockylinux-rootfs.img", app_dir);
+        rootfs::create_squashfs(&rockylinux_rootfs, &img_file)?;
+
+        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+
+        Ok((kernel_file, img_file, ssh_key_file))
+    }
+}
+
+impl RootfsPreparer for ArchlinuxPreparer {
+    fn name(&self) -> &'static str {
+        "ArchLinux"
+    }
+
+    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+        println!(
+            "[+] Preparing {} rootfs for {}...",
+            self.name(),
+            arch.bright_green()
+        );
+
+        let kernel_file = downloader::download_kernel(arch)?;
+        let archlinux_rootfs = format!("{}/archlinux-rootfs", app_dir);
+        let squashfs_file = format!("{}/archlinux-rootfs.squashfs", app_dir);
+
+        downloader::download_archlinux_rootfs(arch)?;
+        rootfs::extract_squashfs(&squashfs_file, &archlinux_rootfs)?;
+
+        let ssh_key_name = "id_rsa";
+        ssh::generate_and_copy_ssh_key(&ssh_key_name, &archlinux_rootfs)?;
+
+        let img_file = format!("{}/archlinux-rootfs.img", app_dir);
+        rootfs::create_squashfs(&archlinux_rootfs, &img_file)?;
+
+        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+
+        Ok((kernel_file, img_file, ssh_key_file))
+    }
+}
+
+impl RootfsPreparer for OpensuseTumbleweedPreparer {
+    fn name(&self) -> &'static str {
+        "OpenSUSE (Tumbleweed)"
+    }
+
+    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+        println!(
+            "[+] Preparing {} rootfs for {}...",
+            self.name(),
+            arch.bright_green()
+        );
+
+        let kernel_file = downloader::download_kernel(arch)?;
+        let opensuse_rootfs = format!("{}/opensuse-tumbleweed-rootfs", app_dir);
+        let squashfs_file = format!("{}/opensuse-tumbleweed-rootfs.squashfs", app_dir);
+
+        downloader::download_opensuse_tumbleweed_rootfs(arch)?;
+        rootfs::extract_squashfs(&squashfs_file, &opensuse_rootfs)?;
+
+        let ssh_key_name = "id_rsa";
+        ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?;
+
+        let img_file = format!("{}/opensuse-tumbleweed-rootfs.img", app_dir);
+        rootfs::create_squashfs(&opensuse_rootfs, &img_file)?;
+
+        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        Ok((kernel_file, img_file, ssh_key_file))
     }
 }
 
@@ -322,12 +657,20 @@ pub fn prepare(distro: Distro) -> Result<()> {
         Distro::Alpine => Box::new(AlpinePreparer),
         Distro::Ubuntu => Box::new(UbuntuPreparer),
         Distro::NixOS => Box::new(NixOSPreparer),
+        Distro::Fedora => Box::new(FedoraPreparer),
+        Distro::Gentoo => Box::new(GentooPreparer),
+        Distro::Slackware => Box::new(SlackwarePreparer),
+        Distro::Opensuse => Box::new(OpensusePreparer),
+        Distro::OpensuseTumbleweed => Box::new(OpensuseTumbleweedPreparer),
+        Distro::Almalinux => Box::new(AlmalinuxPreparer),
+        Distro::RockyLinux => Box::new(RockyLinuxPreparer),
+        Distro::Archlinux => Box::new(ArchlinuxPreparer),
     };
 
-    let (kernel_file, ext4_file, ssh_key_file) = preparer.prepare(&arch, &app_dir)?;
+    let (kernel_file, img_file, ssh_key_file) = preparer.prepare(&arch, &app_dir)?;
 
     println!("[✓] Kernel: {}", kernel_file.bright_green());
-    println!("[✓] Rootfs: {}", ext4_file.bright_green());
+    println!("[✓] Rootfs: {}", img_file.bright_green());
     println!("[✓] SSH Key: {}", ssh_key_file.bright_green());
 
     Ok(())

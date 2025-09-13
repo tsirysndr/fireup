@@ -17,7 +17,7 @@ pub fn setup_nextdhcp(_config: &VmOptions) -> Result<(), Error> {
 
     let nextdhcp_config: &str = r#"
 172.16.0.1/24 {
-  lease 5m
+  lease 30m
 
   range 172.16.0.2 172.16.0.150
 

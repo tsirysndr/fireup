@@ -60,6 +60,17 @@ fn cli() -> Command {
                 .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
                 .arg(arg!(--nixos "Prepare NixOS MicroVM").default_value("false"))
                 .arg(arg!(--ubuntu "Prepare Ubuntu MicroVM").default_value("true"))
+                .arg(arg!(--fedora "Prepare Fedora MicroVM").default_value("false"))
+                .arg(arg!(--gentoo "Prepare Gentoo MicroVM").default_value("false"))
+                .arg(arg!(--slackware "Prepare Slackware MicroVM").default_value("false"))
+                .arg(arg!(--opensuse "Prepare OpenSUSE MicroVM").default_value("false"))
+                .arg(
+                    arg!(--opensuse-tumbleweed "Prepare OpenSUSE Tumbleweed MicroVM")
+                        .default_value("false"),
+                )
+                .arg(arg!(--almalinux "Prepare AlmaLinux MicroVM").default_value("false"))
+                .arg(arg!(--rockylinux "Prepare RockyLinux MicroVM").default_value("false"))
+                .arg(arg!(--archlinux "Prepare ArchLinux MicroVM").default_value("false"))
                 .arg(arg!(--vcpu <n> "Number of vCPUs"))
                 .arg(arg!(--memory <m> "Memory size in MiB"))
                 .arg(arg!(--vmlinux <path> "Path to the kernel image"))
@@ -116,6 +127,17 @@ fn cli() -> Command {
         .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
         .arg(arg!(--nixos "Prepare NixOS MicroVM").default_value("false"))
         .arg(arg!(--ubuntu "Prepare Ubuntu MicroVM").default_value("true"))
+        .arg(arg!(--fedora "Prepare Fedora MicroVM").default_value("false"))
+        .arg(arg!(--gentoo "Prepare Gentoo MicroVM").default_value("false"))
+        .arg(arg!(--slackware "Prepare Slackware MicroVM").default_value("false"))
+        .arg(arg!(--opensuse "Prepare OpenSUSE MicroVM").default_value("false"))
+        .arg(
+            arg!(--opensuse-tumbleweed "Prepare OpenSUSE Tumbleweed MicroVM")
+                .default_value("false"),
+        )
+        .arg(arg!(--almalinux "Prepare AlmaLinux MicroVM").default_value("false"))
+        .arg(arg!(--rockylinux "Prepare RockyLinux MicroVM").default_value("false"))
+        .arg(arg!(--archlinux "Prepare ArchLinux MicroVM").default_value("false"))
         .arg(arg!(--vcpu <n> "Number of vCPUs"))
         .arg(arg!(--memory <m> "Memory size in MiB"))
         .arg(arg!(--vmlinux <path> "Path to the kernel image"))
@@ -197,6 +219,14 @@ async fn main() -> Result<()> {
                 alpine: args.get_one::<bool>("alpine").copied(),
                 ubuntu: args.get_one::<bool>("ubuntu").copied(),
                 nixos: args.get_one::<bool>("nixos").copied(),
+                fedora: args.get_one::<bool>("fedora").copied(),
+                gentoo: args.get_one::<bool>("gentoo").copied(),
+                slackware: args.get_one::<bool>("slackware").copied(),
+                opensuse: args.get_one::<bool>("opensuse").copied(),
+                opensuse_tumbleweed: args.get_one::<bool>("opensuse-tumbleweed").copied(),
+                almalinux: args.get_one::<bool>("almalinux").copied(),
+                rockylinux: args.get_one::<bool>("rockylinux").copied(),
+                archlinux: args.get_one::<bool>("archlinux").copied(),
                 vcpu,
                 memory,
                 vmlinux,
@@ -236,14 +266,43 @@ async fn main() -> Result<()> {
             let alpine = matches.get_one::<bool>("alpine").copied().unwrap_or(false);
             let nixos = matches.get_one::<bool>("nixos").copied().unwrap_or(false);
             let ubuntu = matches.get_one::<bool>("ubuntu").copied().unwrap_or(false);
+            let fedora = matches.get_one::<bool>("fedora").copied().unwrap_or(false);
+            let gentoo = matches.get_one::<bool>("gentoo").copied().unwrap_or(false);
+            let slackware = matches
+                .get_one::<bool>("slackware")
+                .copied()
+                .unwrap_or(false);
+            let opensuse = matches
+                .get_one::<bool>("opensuse")
+                .copied()
+                .unwrap_or(false);
+            let opensuse_tumbleweed = matches
+                .get_one::<bool>("opensuse-tumbleweed")
+                .copied()
+                .unwrap_or(false);
+            let almalinux = matches
+                .get_one::<bool>("almalinux")
+                .copied()
+                .unwrap_or(false);
+            let rockylinux = matches
+                .get_one::<bool>("rockylinux")
+                .copied()
+                .unwrap_or(false);
+            let archlinux = matches
+                .get_one::<bool>("archlinux")
+                .copied()
+                .unwrap_or(false);
+
             let vcpu = matches
                 .get_one::<String>("vcpu")
                 .map(|s| s.parse::<u16>().unwrap())
                 .unwrap_or(num_cpus::get() as u16);
+
             let memory = matches
                 .get_one::<String>("memory")
                 .map(|s| s.parse::<u16>().unwrap())
                 .unwrap_or(if nixos { 2048 } else { 512 });
+
             let vmlinux = matches.get_one::<String>("vmlinux").cloned();
             let rootfs = matches.get_one::<String>("rootfs").cloned();
             let bootargs = matches.get_one::<String>("boot-args").cloned();
@@ -263,6 +322,14 @@ async fn main() -> Result<()> {
                 alpine: Some(alpine),
                 ubuntu: Some(ubuntu),
                 nixos: Some(nixos),
+                fedora: Some(fedora),
+                gentoo: Some(gentoo),
+                slackware: Some(slackware),
+                opensuse: Some(opensuse),
+                opensuse_tumbleweed: Some(opensuse_tumbleweed),
+                almalinux: Some(almalinux),
+                rockylinux: Some(rockylinux),
+                archlinux: Some(archlinux),
                 vcpu,
                 memory,
                 vmlinux,
