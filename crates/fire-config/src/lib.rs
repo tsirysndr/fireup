@@ -5,6 +5,15 @@ use firecracker_prepare::Distro;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EtcdConfig {
+    pub endpoints: Option<Vec<String>>,
+    pub user: Option<String>,
+    pub password: Option<String>,
+    pub cacert: Option<String>,
+    pub cert: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Vm {
     pub vcpu: Option<u16>,
@@ -22,6 +31,7 @@ pub struct Vm {
 pub struct FireConfig {
     pub distro: Distro,
     pub vm: Vm,
+    pub etcd: Option<EtcdConfig>,
 }
 
 impl Default for FireConfig {
@@ -39,6 +49,7 @@ impl Default for FireConfig {
                 api_socket: None,
                 mac: None,
             },
+            etcd: None,
         }
     }
 }

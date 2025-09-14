@@ -180,35 +180,35 @@ pub fn download_nixos_rootfs(_arch: &str) -> Result<()> {
 
 pub fn download_fedora_rootfs(_arch: &str) -> Result<()> {
     let app_dir = crate::config::get_config_dir()?;
-    let output = format!("{}/fedora-rootfs.img", app_dir);
+    let output = format!("{}/fedora-rootfs.squashfs", app_dir);
     download_file("https://public.rocksky.app/fedora-rootfs.img", &output)?;
     Ok(())
 }
 
 pub fn download_gentoo_rootfs(_arch: &str) -> Result<()> {
     let app_dir = crate::config::get_config_dir()?;
-    let output = format!("{}/gentoo-rootfs.img", app_dir);
+    let output = format!("{}/gentoo-rootfs.squashfs", app_dir);
     download_file("https://public.rocksky.app/gentoo-rootfs.img", &output)?;
     Ok(())
 }
 
 pub fn download_slackware_rootfs(_arch: &str) -> Result<()> {
     let app_dir = crate::config::get_config_dir()?;
-    let output = format!("{}/slackware-rootfs.img", app_dir);
+    let output = format!("{}/slackware-rootfs.squashfs", app_dir);
     download_file("https://public.rocksky.app/slackware-rootfs.img", &output)?;
     Ok(())
 }
 
 pub fn download_opensuse_rootfs(_arch: &str) -> Result<()> {
     let app_dir = crate::config::get_config_dir()?;
-    let output = format!("{}/opensuse-rootfs.img", app_dir);
+    let output = format!("{}/opensuse-rootfs.squashfs", app_dir);
     download_file("https://public.rocksky.app/opensuse-rootfs.img", &output)?;
     Ok(())
 }
 
 pub fn download_opensuse_tumbleweed_rootfs(_arch: &str) -> Result<()> {
     let app_dir = crate::config::get_config_dir()?;
-    let output = format!("{}/opensuse-tumbleweed-rootfs.img", app_dir);
+    let output = format!("{}/opensuse-tumbleweed-rootfs.squashfs", app_dir);
     download_file(
         "https://public.rocksky.app/opensuse-tumbleweed-rootfs.img",
         &output,
@@ -218,21 +218,21 @@ pub fn download_opensuse_tumbleweed_rootfs(_arch: &str) -> Result<()> {
 
 pub fn download_almalinux_rootfs(_arch: &str) -> Result<()> {
     let app_dir = crate::config::get_config_dir()?;
-    let output = format!("{}/almalinux-rootfs.img", app_dir);
+    let output = format!("{}/almalinux-rootfs.squashfs", app_dir);
     download_file("https://public.rocksky.app/almalinux-rootfs.img", &output)?;
     Ok(())
 }
 
 pub fn download_rockylinux_rootfs(_arch: &str) -> Result<()> {
     let app_dir = crate::config::get_config_dir()?;
-    let output = format!("{}/rockylinux-rootfs.img", app_dir);
+    let output = format!("{}/rockylinux-rootfs.squashfs", app_dir);
     download_file("https://public.rocksky.app/rockylinux-rootfs.img", &output)?;
     Ok(())
 }
 
 pub fn download_archlinux_rootfs(_arch: &str) -> Result<()> {
     let app_dir = crate::config::get_config_dir()?;
-    let output = format!("{}/archlinux-rootfs.img", app_dir);
+    let output = format!("{}/archlinux-rootfs.squashfs", app_dir);
     download_file("https://public.rocksky.app/archlinux-rootfs.img", &output)?;
     Ok(())
 }

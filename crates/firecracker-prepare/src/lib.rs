@@ -413,6 +413,12 @@ impl RootfsPreparer for FedoraPreparer {
         downloader::download_fedora_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &fedora_rootfs)?;
 
+        run_command(
+            "chroot",
+            &[&fedora_rootfs, "systemctl", "enable", "sshd"],
+            true,
+        )?;
+
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key(&ssh_key_name, &fedora_rootfs)?;
 
@@ -450,6 +456,13 @@ impl RootfsPreparer for GentooPreparer {
         downloader::download_gentoo_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &gentoo_rootfs)?;
 
+        // Enable sshd service
+        run_command(
+            "chroot",
+            &[&gentoo_rootfs, "systemctl", "enable", "sshd"],
+            true,
+        )?;
+
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key(&ssh_key_name, &gentoo_rootfs)?;
 
@@ -481,6 +494,18 @@ impl RootfsPreparer for SlackwarePreparer {
         downloader::download_slackware_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &slackware_rootfs)?;
 
+        run_command(
+            "chroot",
+            &[
+                &slackware_rootfs,
+                "ln",
+                "-sf",
+                "/etc/rc.d/rc.sshd",
+                "/etc/rc.d/rc3.d/S50sshd",
+            ],
+            true,
+        )?;
+
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key(&ssh_key_name, &slackware_rootfs)?;
 
@@ -511,6 +536,12 @@ impl RootfsPreparer for OpensusePreparer {
 
         downloader::download_opensuse_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &opensuse_rootfs)?;
+
+        run_command(
+            "chroot",
+            &[&opensuse_rootfs, "systemctl", "enable", "sshd"],
+            true,
+        )?;
 
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?;
@@ -604,6 +635,17 @@ impl RootfsPreparer for ArchlinuxPreparer {
         downloader::download_archlinux_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &archlinux_rootfs)?;
 
+        run_command(
+            "chroot",
+            &[&archlinux_rootfs, "systemctl", "enable", "sshd"],
+            true,
+        )?;
+        run_command(
+            "chroot",
+            &[&archlinux_rootfs, "systemctl", "mask", "systemd-firstboot"],
+            true,
+        )?;
+
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key(&ssh_key_name, &archlinux_rootfs)?;
 
@@ -634,6 +676,12 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
 
         downloader::download_opensuse_tumbleweed_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &opensuse_rootfs)?;
+
+        run_command(
+            "chroot",
+            &[&opensuse_rootfs, "systemctl", "enable", "sshd"],
+            true,
+        )?;
 
         let ssh_key_name = "id_rsa";
         ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?;

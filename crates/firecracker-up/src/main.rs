@@ -59,18 +59,19 @@ fn cli() -> Command {
                 .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
                 .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
                 .arg(arg!(--nixos "Prepare NixOS MicroVM").default_value("false"))
-                .arg(arg!(--ubuntu "Prepare Ubuntu MicroVM").default_value("true"))
                 .arg(arg!(--fedora "Prepare Fedora MicroVM").default_value("false"))
                 .arg(arg!(--gentoo "Prepare Gentoo MicroVM").default_value("false"))
                 .arg(arg!(--slackware "Prepare Slackware MicroVM").default_value("false"))
                 .arg(arg!(--opensuse "Prepare OpenSUSE MicroVM").default_value("false"))
                 .arg(
-                    arg!(--opensuse-tumbleweed "Prepare OpenSUSE Tumbleweed MicroVM")
-                        .default_value("false"),
+                    Arg::new("opensuse-tumbleweed")
+                        .help("Prepare OpenSUSE Tumbleweed MicroVM")
+                        .action(clap::ArgAction::SetTrue),
                 )
                 .arg(arg!(--almalinux "Prepare AlmaLinux MicroVM").default_value("false"))
                 .arg(arg!(--rockylinux "Prepare RockyLinux MicroVM").default_value("false"))
                 .arg(arg!(--archlinux "Prepare ArchLinux MicroVM").default_value("false"))
+                .arg(arg!(--ubuntu "Prepare Ubuntu MicroVM").default_value("true"))
                 .arg(arg!(--vcpu <n> "Number of vCPUs"))
                 .arg(arg!(--memory <m> "Memory size in MiB"))
                 .arg(arg!(--vmlinux <path> "Path to the kernel image"))
@@ -126,18 +127,20 @@ fn cli() -> Command {
         .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
         .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
         .arg(arg!(--nixos "Prepare NixOS MicroVM").default_value("false"))
-        .arg(arg!(--ubuntu "Prepare Ubuntu MicroVM").default_value("true"))
         .arg(arg!(--fedora "Prepare Fedora MicroVM").default_value("false"))
         .arg(arg!(--gentoo "Prepare Gentoo MicroVM").default_value("false"))
         .arg(arg!(--slackware "Prepare Slackware MicroVM").default_value("false"))
         .arg(arg!(--opensuse "Prepare OpenSUSE MicroVM").default_value("false"))
         .arg(
-            arg!(--opensuse-tumbleweed "Prepare OpenSUSE Tumbleweed MicroVM")
-                .default_value("false"),
+            Arg::new("opensuse-tumbleweed")
+                .long("opensuse-tumbleweed")
+                .help("Prepare OpenSUSE Tumbleweed MicroVM")
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(arg!(--almalinux "Prepare AlmaLinux MicroVM").default_value("false"))
         .arg(arg!(--rockylinux "Prepare RockyLinux MicroVM").default_value("false"))
         .arg(arg!(--archlinux "Prepare ArchLinux MicroVM").default_value("false"))
+        .arg(arg!(--ubuntu "Prepare Ubuntu MicroVM").default_value("true"))
         .arg(arg!(--vcpu <n> "Number of vCPUs"))
         .arg(arg!(--memory <m> "Memory size in MiB"))
         .arg(arg!(--vmlinux <path> "Path to the kernel image"))
@@ -236,6 +239,7 @@ async fn main() -> Result<()> {
                 tap,
                 api_socket,
                 mac_address,
+                etcd: None,
             };
             up(options).await?
         }
@@ -339,6 +343,7 @@ async fn main() -> Result<()> {
                 tap,
                 api_socket,
                 mac_address,
+                etcd: None,
             };
             up(options).await?
         }

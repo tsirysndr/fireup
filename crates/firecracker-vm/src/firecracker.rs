@@ -57,7 +57,7 @@ fn configure_logger(logfile: &str, options: &VmOptions) -> Result<()> {
 fn setup_boot_source(kernel: &str, arch: &str, options: &VmOptions) -> Result<String> {
     println!("[+] Setting boot source...");
     let mut boot_args =
-        "console=ttyS0 reboot=k panic=1 pci=off ip=dhcp init=/sbin/overlay-init overlay_root=ram"
+        "console=ttyS0 reboot=k panic=1 pci=off ip=dhcp selinux=0 enforcing=0 init=/sbin/overlay-init overlay_root=ram"
             .to_string();
     if arch == "aarch64" {
         boot_args = format!("keep_bootcon {}", boot_args);

@@ -49,6 +49,29 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
     )?;
     restart_coredns()?;
 
+    let etcd_args = match config.etcd.clone() {
+        Some(etcd) => {
+            let mut args = vec![];
+            if let Some(endpoints) = &etcd.endpoints {
+                args.push(format!("--endpoints={}", endpoints.join(",")));
+            }
+            if let Some(user) = &etcd.user {
+                args.push(format!("--user={}", user));
+            }
+            if let Some(password) = &etcd.password {
+                args.push(format!("--password={}", password));
+            }
+            if let Some(cacert) = &etcd.cacert {
+                args.push(format!("--cacert={}", cacert));
+            }
+            if let Some(cert) = &etcd.cert {
+                args.push(format!("--cert={}", cert));
+            }
+            args
+        }
+        None => vec![],
+    };
+
     thread::spawn(move || {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         match runtime.block_on(async {
@@ -75,11 +98,10 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
 
             let etcd_key = format!("/skydns/firecracker/{}", name);
             let etcd_value = format!("{{\"host\":\"{}\"}}", ip_addr);
-            run_command(
-                "etcdctl",
-                &["put", &etcd_key, &etcd_value],
-                true,
-            )?;
+            let mut args = vec!["put", &etcd_key, &etcd_value];
+            args.extend(etcd_args.iter().map(String::as_str));
+
+            run_command("etcdctl", &args, false)?;
 
             Ok::<(), Error>(())
         }) {

@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::command::run_command;
+use crate::command::{run_command, run_command_with_stdout_inherit};
 
 pub fn extract_squashfs(squashfs_file: &str, output_dir: &str) -> Result<()> {
     if std::path::Path::new(output_dir).exists() {
@@ -35,7 +35,7 @@ pub fn create_squashfs(squashfs_dir: &str, output_file: &str) -> Result<()> {
         );
         return Ok(());
     }
-    run_command("mksquashfs", &[squashfs_dir, output_file], true)?;
+    run_command_with_stdout_inherit("mksquashfs", &[squashfs_dir, output_file], true)?;
     Ok(())
 }
 

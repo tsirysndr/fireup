@@ -1,4 +1,4 @@
-use fire_config::FireConfig;
+use fire_config::{EtcdConfig, FireConfig};
 use firecracker_prepare::Distro;
 
 use crate::constants::{BRIDGE_DEV, FC_MAC, FIRECRACKER_SOCKET};
@@ -26,6 +26,7 @@ pub struct VmOptions {
     pub tap: String,
     pub api_socket: String,
     pub mac_address: String,
+    pub etcd: Option<EtcdConfig>,
 }
 
 impl From<FireConfig> for VmOptions {
@@ -53,6 +54,7 @@ impl From<FireConfig> for VmOptions {
             tap: vm.tap.unwrap_or("".into()),
             api_socket: vm.api_socket.unwrap_or(FIRECRACKER_SOCKET.into()),
             mac_address: vm.mac.unwrap_or(FC_MAC.into()),
+            etcd: config.etcd.clone(),
         }
     }
 }
@@ -65,8 +67,6 @@ impl Into<Distro> for VmOptions {
             Distro::Alpine
         } else if self.nixos.unwrap_or(false) {
             Distro::NixOS
-        } else if self.ubuntu.unwrap_or(true) {
-            Distro::Ubuntu
         } else if self.fedora.unwrap_or(false) {
             Distro::Fedora
         } else if self.gentoo.unwrap_or(false) {
@@ -83,6 +83,8 @@ impl Into<Distro> for VmOptions {
             Distro::RockyLinux
         } else if self.archlinux.unwrap_or(false) {
             Distro::Archlinux
+        } else if self.ubuntu.unwrap_or(true) {
+            Distro::Ubuntu
         } else {
             panic!("No valid distribution option provided.");
         }
