@@ -16,7 +16,6 @@ ts.net:53 {
   # Log and errors for debugging
   log
   errors
-  health
 }
 
 .:53 {
@@ -31,11 +30,5 @@ ts.net:53 {
   # Log and errors for debugging
   log
   errors
-  health
-}
-
-. {
-    forward . 8.8.8.8 1.1.1.1
-    log
-    errors
+  health :8181
 }
