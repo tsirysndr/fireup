@@ -10,13 +10,13 @@ mod command;
 mod config;
 pub mod constants;
 mod coredns;
+mod dhcpd;
 mod firecracker;
 mod guest;
 pub mod mac;
 mod mosquitto;
 mod mqttc;
 mod network;
-mod nextdhcp;
 pub mod types;
 
 pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Result<()> {
@@ -58,25 +58,24 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
         .display()
         .to_string();
 
-    let ext4_file = match distro {
-        Distro::Debian => format!("{}/debian*.ext4", app_dir),
-        Distro::Alpine => format!("{}/alpine*.ext4", app_dir),
-        Distro::NixOS => format!("{}/nixos*.ext4", app_dir),
-        Distro::Ubuntu => format!("{}/ubuntu*.ext4", app_dir),
+    // readonly rootfs (squashfs)
+    let img_file = match distro {
+        Distro::Debian => format!("{}/debian-rootfs.img", app_dir),
+        Distro::Alpine => format!("{}/alpine-rootfs.img", app_dir),
+        Distro::NixOS => format!("{}/nixos-rootfs.img", app_dir),
+        Distro::Ubuntu => format!("{}/ubuntu-rootfs.img", app_dir),
+        Distro::Fedora => format!("{}/fedora-rootfs.img", app_dir),
+        Distro::Gentoo => format!("{}/gentoo-rootfs.img", app_dir),
+        Distro::Slackware => format!("{}/slackware-rootfs.img", app_dir),
+        Distro::Opensuse => format!("{}/opensuse-rootfs.img", app_dir),
+        Distro::OpensuseTumbleweed => format!("{}/opensuse-tumbleweed-rootfs.img", app_dir),
+        Distro::Almalinux => format!("{}/almalinux-rootfs.img", app_dir),
+        Distro::RockyLinux => format!("{}/rockylinux-rootfs.img", app_dir),
+        Distro::Archlinux => format!("{}/archlinux-rootfs.img", app_dir),
     };
 
-    let rootfs = glob::glob(&ext4_file)
-        .with_context(|| "Failed to glob rootfs files")?
-        .last()
-        .ok_or_else(|| anyhow!("No rootfs file found"))?
-        .with_context(|| "Failed to get rootfs path")?;
-    let rootfs = fs::canonicalize(&rootfs)
-        .with_context(|| {
-            format!(
-                "Failed to resolve absolute path for rootfs: {}",
-                rootfs.display()
-            )
-        })?
+    let rootfs = fs::canonicalize(&img_file)
+        .with_context(|| format!("Failed to resolve absolute path for rootfs: {}", img_file))?
         .display()
         .to_string();
 
@@ -99,21 +98,15 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
     network::setup_network(options)?;
     mosquitto::setup_mosquitto(options)?;
     coredns::setup_coredns(options)?;
-    nextdhcp::setup_nextdhcp(options)?;
+    dhcpd::setup_kea_dhcp(options)?;
 
-    firecracker::configure(&logfile, &kernel, &rootfs, &arch, &options, distro)?;
+    firecracker::configure(&logfile, &kernel, &rootfs, &arch, &options)?;
 
     if distro != Distro::NixOS {
         let guest_ip = format!("{}.firecracker", name);
         guest::configure_guest_network(&key_name, &guest_ip)?;
     }
     let pool = firecracker_state::create_connection_pool().await?;
-    let distro = match distro {
-        Distro::Debian => "debian".into(),
-        Distro::Alpine => "alpine".into(),
-        Distro::NixOS => "nixos".into(),
-        Distro::Ubuntu => "ubuntu".into(),
-    };
 
     let ip_file = format!("/tmp/firecracker-{}.ip", name);
 
@@ -165,7 +158,7 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
                     mac_address: options.mac_address.clone(),
                     name: name.clone(),
                     pid: Some(pid),
-                    distro,
+                    distro: distro.to_string(),
                     ip_address: Some(ip_addr.clone()),
                     status: "RUNNING".into(),
                     project_dir,
@@ -189,7 +182,7 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
                     mac_address: options.mac_address.clone(),
                     name: name.clone(),
                     pid: Some(pid),
-                    distro,
+                    distro: distro.to_string(),
                     ip_address: Some(ip_addr.clone()),
                     status: "RUNNING".into(),
                     project_dir,

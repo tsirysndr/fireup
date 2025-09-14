@@ -1,13 +1,10 @@
 use crate::types::VmOptions;
 use anyhow::Result;
-use firecracker_prepare::Distro;
 use serde_json::json;
 use std::thread::sleep;
 use std::time::Duration;
 
 use crate::command::run_command;
-
-const NIXOS_BOOT_ARGS: &str = "init=/nix/store/w1yqjd8sswh8zj9sz2v76dpw3llzkg5k-nixos-system-nixos-firecracker-25.05.802216.55d1f923c480/init root=/dev/vda ro console=ttyS0 reboot=k panic=1 ip=dhcp";
 
 pub fn configure(
     logfile: &str,
@@ -15,10 +12,9 @@ pub fn configure(
     rootfs: &str,
     arch: &str,
     options: &VmOptions,
-    distro: Distro,
 ) -> Result<()> {
     configure_logger(logfile, options)?;
-    setup_boot_source(kernel, arch, distro == Distro::NixOS, &options)?;
+    setup_boot_source(kernel, arch, &options)?;
     setup_rootfs(rootfs, options)?;
     setup_network_interface(options)?;
     setup_vcpu_and_memory(options.vcpu, options.memory, &options.api_socket)?;
@@ -58,20 +54,13 @@ fn configure_logger(logfile: &str, options: &VmOptions) -> Result<()> {
     Ok(())
 }
 
-fn setup_boot_source(
-    kernel: &str,
-    arch: &str,
-    is_nixos: bool,
-    options: &VmOptions,
-) -> Result<String> {
+fn setup_boot_source(kernel: &str, arch: &str, options: &VmOptions) -> Result<String> {
     println!("[+] Setting boot source...");
-    let mut boot_args = "console=ttyS0 reboot=k panic=1 pci=off ip=dhcp".to_string();
+    let mut boot_args =
+        "console=ttyS0 reboot=k panic=1 pci=off ip=dhcp selinux=0 enforcing=0 init=/sbin/overlay-init overlay_root=ram"
+            .to_string();
     if arch == "aarch64" {
         boot_args = format!("keep_bootcon {}", boot_args);
-    }
-
-    if is_nixos {
-        boot_args = NIXOS_BOOT_ARGS.into();
     }
 
     if let Some(args) = &options.bootargs {
@@ -109,7 +98,7 @@ fn setup_rootfs(rootfs: &str, options: &VmOptions) -> Result<()> {
         "drive_id": "rootfs",
         "path_on_host": rootfs,
         "is_root_device": true,
-        "is_read_only": false
+        "is_read_only": true
     });
     run_command(
         "curl",

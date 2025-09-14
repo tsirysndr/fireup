@@ -12,6 +12,11 @@ pub fn generate_and_copy_ssh_key(key_name: &str, squashfs_root_dir: &str) -> Res
         );
         let pub_key_path = format!("{}/{}.pub", app_dir, key_name);
         let auth_keys_path = format!("{}/root/.ssh/authorized_keys", squashfs_root_dir);
+        run_command(
+            "mkdir",
+            &["-p", &format!("{}/root/.ssh", squashfs_root_dir)],
+            true,
+        )?;
         run_command("cp", &[&pub_key_path, &auth_keys_path], true)?;
         return Ok(());
     }

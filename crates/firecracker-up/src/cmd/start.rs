@@ -7,6 +7,10 @@ use firecracker_vm::types::VmOptions;
 use crate::cmd::up::up;
 
 pub async fn start(name: &str) -> Result<(), Error> {
+    let etcd = match fire_config::read_config() {
+        Ok(config) => config.etcd,
+        Err(_) => None,
+    };
     let pool = firecracker_state::create_connection_pool().await?;
     let vm = repo::virtual_machine::find(&pool, name).await?;
     if vm.is_none() {
@@ -21,6 +25,14 @@ pub async fn start(name: &str) -> Result<(), Error> {
         alpine: Some(vm.distro == "alpine"),
         ubuntu: Some(vm.distro == "ubuntu"),
         nixos: Some(vm.distro == "nixos"),
+        fedora: Some(vm.distro == "fedora"),
+        gentoo: Some(vm.distro == "gentoo"),
+        slackware: Some(vm.distro == "slackware"),
+        opensuse: Some(vm.distro == "opensuse"),
+        opensuse_tumbleweed: Some(vm.distro == "opensuse-tumbleweed"),
+        almalinux: Some(vm.distro == "almalinux"),
+        rockylinux: Some(vm.distro == "rockylinux"),
+        archlinux: Some(vm.distro == "archlinux"),
         vcpu: vm.vcpu,
         memory: vm.memory,
         vmlinux: vm.vmlinux,
@@ -30,6 +42,7 @@ pub async fn start(name: &str) -> Result<(), Error> {
         tap: vm.tap,
         api_socket: vm.api_socket,
         mac_address: vm.mac_address,
+        etcd,
     })
     .await?;
 

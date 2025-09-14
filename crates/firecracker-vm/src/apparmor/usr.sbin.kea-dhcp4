@@ -1,0 +1,51 @@
+abi <abi/3.0>,
+
+include <tunables/global>
+
+profile kea-dhcp4 /usr/sbin/kea-dhcp4 {
+  include <abstractions/base>
+  include <abstractions/nameservice>
+
+  # for MySQL access, localhost
+  include <abstractions/mysql>
+  include <abstractions/openssl>
+
+  capability net_bind_service,
+  capability net_raw,
+
+  network inet dgram,
+  network inet stream,
+  network netlink raw,
+  network packet raw,
+
+  /etc/gss/mech.d/ r,
+  /etc/gss/mech.d/* r,
+
+  /etc/kea/ r,
+  /etc/kea/** r,
+  /usr/sbin/kea-dhcp4 mr,
+  /usr/sbin/kea-lfc Px,
+
+  owner /run/kea/kea-dhcp4.kea-dhcp4.pid rw,
+  owner /run/lock/kea/logger_lockfile rwk,
+
+  # Control sockets
+  # Before LP: #1863100, these were in /tmp. For compatibility, let's keep both
+  # locations
+  owner /{tmp,run/kea}/kea4-ctrl-socket w,
+  owner /{tmp,run/kea}/kea4-ctrl-socket.lock rwk,
+
+  # this includes .completed, .output, .pid, .[0-9]
+  owner /var/lib/kea/kea-leases4.csv* rw,
+
+  owner /var/log/kea/kea-dhcp4.log rw,
+  owner /var/log/kea/kea-dhcp4.log.[0-9]* rw,
+  owner /var/log/kea/kea-dhcp4.log.lock rwk,
+
+  # Site-specific additions and overrides. See local/README for details.
+  #include <local/usr.sbin.kea-dhcp4>
+
+  /usr/local/bin/kea-mqtt-hook.sh ux,
+  /usr/bin/mosquitto_pub ixr,
+  /usr/lib/** rm,
+}
