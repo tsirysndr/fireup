@@ -120,7 +120,7 @@ pub async fn update(pool: &Pool<Sqlite>, id: &str, vm: VirtualMachine) -> Result
             distro = ?,
             vmlinux = ?,
             rootfs = ?,
-            bootargs = ?
+            bootargs = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?"#,
     )
