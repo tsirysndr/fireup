@@ -121,6 +121,7 @@ pub async fn update(pool: &Pool<Sqlite>, id: &str, vm: VirtualMachine) -> Result
             vmlinux = ?,
             rootfs = ?,
             bootargs = ?
+            updated_at = CURRENT_TIMESTAMP
         WHERE id = ?"#,
     )
     .bind(&vm.project_dir)

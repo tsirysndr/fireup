@@ -36,3 +36,11 @@ pub fn format_duration_ago(created: DateTime<Utc>) -> String {
         )
     }
 }
+
+pub fn format_status(status: &str, date: DateTime<Utc>) -> String {
+    if status == "RUNNING" {
+        format!("Up {}", format_duration_ago(date))
+    } else {
+        status.to_string()
+    }
+}
