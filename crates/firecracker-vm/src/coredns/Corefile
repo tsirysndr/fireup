@@ -1,0 +1,35 @@
+firecracker:53 {
+  etcd firecracker {
+    path /skydns
+    endpoint http://127.0.0.1:2379
+    fallthrough
+  }
+
+  cache 30
+  loadbalance
+  log
+}
+
+ts.net:53 {
+  # Forward non-internal queries (e.g., to Tailscale DNS)
+  forward . 100.100.100.100
+  # Log and errors for debugging
+  log
+  errors
+  health
+}
+
+.:53 {
+  # Forward non-internal queries (e.g., to Google DNS)
+  forward . 8.8.8.8 8.8.4.4 1.1.1.1 1.0.0.1 {
+    max_fails 3
+    expire 10s
+    health_check 5s
+    policy round_robin
+    except ts.net
+  }
+  # Log and errors for debugging
+  log
+  errors
+  health
+}

@@ -79,7 +79,7 @@ impl RootfsPreparer for DebianPreparer {
             arch.bright_green()
         );
         let kernel_file = downloader::download_kernel(arch)?;
-        let debootstrap_dir = format!("{}/debootstrap", app_dir);
+        let debootstrap_dir = format!("{}/debian-rootfs", app_dir);
 
         let arch = match arch {
             "x86_64" => "amd64",

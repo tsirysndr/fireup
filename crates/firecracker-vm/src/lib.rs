@@ -10,13 +10,13 @@ mod command;
 mod config;
 pub mod constants;
 mod coredns;
+mod dhcpd;
 mod firecracker;
 mod guest;
 pub mod mac;
 mod mosquitto;
 mod mqttc;
 mod network;
-mod nextdhcp;
 pub mod types;
 
 pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Result<()> {
@@ -98,7 +98,7 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
     network::setup_network(options)?;
     mosquitto::setup_mosquitto(options)?;
     coredns::setup_coredns(options)?;
-    nextdhcp::setup_nextdhcp(options)?;
+    dhcpd::setup_kea_dhcp(options)?;
 
     firecracker::configure(&logfile, &kernel, &rootfs, &arch, &options)?;
 

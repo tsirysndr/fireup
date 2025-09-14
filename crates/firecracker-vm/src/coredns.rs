@@ -1,7 +1,6 @@
 use std::{process, thread};
 
 use anyhow::{Context, Error};
-use firecracker_state::repo;
 
 use crate::{command::run_command, mqttc, types::VmOptions};
 
@@ -10,16 +9,49 @@ pub const COREDNS_SERVICE_TEMPLATE: &str = include_str!("./systemd/coredns.servi
 
 pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
     let api_socket = config.api_socket.clone();
+    if !coredns_is_installed()? {
+        println!("[✗] CoreDNS is not installed. Please install it first to /usr/sbin.");
+        process::exit(1);
+    }
+
+    if !etcd_is_installed()? {
+        println!("[+] Installing etcd...");
+        run_command(
+            "apt-get",
+            &["install", "-y", "etcd-server", "etcd-client"],
+            true,
+        )?;
+    }
+
+    run_command(
+        "sh",
+        &[
+            "-c",
+            &format!(
+                "echo '{}' > {}",
+                include_str!("./coredns/Corefile"),
+                COREDNS_CONFIG_PATH
+            ),
+        ],
+        true,
+    )?;
+
+    run_command(
+        "sh",
+        &[
+            "-c",
+            &format!(
+                "echo '{}' > /etc/systemd/system/coredns.service",
+                COREDNS_SERVICE_TEMPLATE
+            ),
+        ],
+        true,
+    )?;
+    restart_coredns()?;
+
     thread::spawn(move || {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         match runtime.block_on(async {
-            println!("[+] Checking if CoreDNS is installed...");
-            if !coredns_is_installed()? {
-                // TODO: install it automatically
-                println!("[✗] CoreDNS is not installed. Please install it first to /usr/sbin.");
-                process::exit(1);
-            }
-
             let message = mqttc::wait_for_mqtt_message("REQUEST").await?;
             let ip_addr = message
                 .split_whitespace()
@@ -36,78 +68,18 @@ pub fn setup_coredns(config: &VmOptions) -> Result<(), Error> {
             std::fs::write(format!("/tmp/firecracker-{}.ip", name), ip_addr)
                 .with_context(|| "Failed to write IP address to file")?;
 
-            let pool = firecracker_state::create_connection_pool().await?;
-            let vms = repo::virtual_machine::all(&pool).await?;
-            let mut hosts = vms
-                .into_iter()
-                .filter(|vm| vm.ip_address.is_some() && vm.name != name)
-                .map(|vm| format!("{} {}.firecracker", vm.ip_address.unwrap(), vm.name))
-                .collect::<Vec<String>>();
-
-            hosts.extend(vec![format!("{} {}.firecracker", ip_addr, name)]);
-
-            let hosts = hosts.join("\n      ");
-
-            let coredns_config: &str = &format!(
-                r#"
-  firecracker:53 {{
-    hosts {{
-      172.16.0.1 br.firecracker
-      {}
-      fallthrough
-    }}
-
-    loadbalance
-  }}
-
-  ts.net:53 {{
-    # Forward non-internal queries (e.g., to Tailscale DNS)
-    forward . 100.100.100.100
-    # Log and errors for debugging
-    log
-    errors
-    health
-  }}
-
-  .:53 {{
-    # Forward non-internal queries (e.g., to Google DNS)
-    forward . 8.8.8.8 8.8.4.4 1.1.1.1 1.0.0.1 {{
-      max_fails 3
-      expire 10s
-      health_check 5s
-      policy round_robin
-      except ts.net
-    }}
-    # Log and errors for debugging
-    log
-    errors
-    health
-  }}
-  "#,
-                hosts
+            println!(
+                "[+] Assigning DNS entry: {}.firecracker -> {}",
+                name, ip_addr
             );
 
+            let etcd_key = format!("/skydns/firecracker/{}", name);
+            let etcd_value = format!("{{\"host\":\"{}\"}}", ip_addr);
             run_command(
-                "sh",
-                &[
-                    "-c",
-                    &format!("echo '{}' > {}", coredns_config, COREDNS_CONFIG_PATH),
-                ],
+                "etcdctl",
+                &["put", &etcd_key, &etcd_value],
                 true,
             )?;
-
-            run_command(
-                "sh",
-                &[
-                    "-c",
-                    &format!(
-                        "echo '{}' > /etc/systemd/system/coredns.service",
-                        COREDNS_SERVICE_TEMPLATE
-                    ),
-                ],
-                true,
-            )?;
-            restart_coredns()?;
 
             Ok::<(), Error>(())
         }) {
@@ -134,5 +106,10 @@ pub fn restart_coredns() -> Result<(), Error> {
 
 pub fn coredns_is_installed() -> Result<bool, Error> {
     let output = run_command("which", &["coredns"], false)?;
+    Ok(output.status.success())
+}
+
+pub fn etcd_is_installed() -> Result<bool, Error> {
+    let output = run_command("ls", &["/usr/bin/etcd"], false)?;
     Ok(output.status.success())
 }
