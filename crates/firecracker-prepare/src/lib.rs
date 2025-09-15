@@ -4,13 +4,17 @@ use anyhow::Result;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
-use crate::command::{run_command, run_command_with_stdout_inherit};
+use crate::{
+    command::{run_command, run_command_with_stdout_inherit},
+    vmlinuz::extract_vmlinuz,
+};
 
 pub mod command;
 pub mod config;
 pub mod downloader;
 pub mod rootfs;
 pub mod ssh;
+pub mod vmlinuz;
 
 const BRIDGE_IP: &str = "172.16.0.1";
 
@@ -49,8 +53,56 @@ impl ToString for Distro {
     }
 }
 
+pub fn prepare(distro: Distro, kernel_file: Option<String>) -> Result<()> {
+    let arch = run_command("uname", &["-m"], false)?.stdout;
+    let arch = String::from_utf8_lossy(&arch).trim().to_string();
+    println!("[+] Detected architecture: {}", arch.bright_green());
+
+    if let Some(ref vmlinuz_file) = kernel_file {
+        if !std::path::Path::new(vmlinuz_file).exists() {
+            println!(
+                "{} {}",
+                "[!]".red(),
+                format!("vmlinuz file {} does not exist", vmlinuz_file).red()
+            );
+            std::process::exit(1);
+        }
+    }
+
+    let app_dir = config::get_config_dir()?;
+    let preparer: Box<dyn RootfsPreparer> = match distro {
+        Distro::Debian => Box::new(DebianPreparer),
+        Distro::Alpine => Box::new(AlpinePreparer),
+        Distro::Ubuntu => Box::new(UbuntuPreparer),
+        Distro::NixOS => Box::new(NixOSPreparer),
+        Distro::Fedora => Box::new(FedoraPreparer),
+        Distro::Gentoo => Box::new(GentooPreparer),
+        Distro::Slackware => Box::new(SlackwarePreparer),
+        Distro::Opensuse => Box::new(OpensusePreparer),
+        Distro::OpensuseTumbleweed => Box::new(OpensuseTumbleweedPreparer),
+        Distro::Almalinux => Box::new(AlmalinuxPreparer),
+        Distro::RockyLinux => Box::new(RockyLinuxPreparer),
+        Distro::Archlinux => Box::new(ArchlinuxPreparer),
+    };
+
+    let (kernel_file, img_file, ssh_key_file) = preparer.prepare(&arch, &app_dir, kernel_file)?;
+
+    extract_vmlinuz(&kernel_file)?;
+
+    println!("[✓] Kernel: {}", kernel_file.bright_green());
+    println!("[✓] Rootfs: {}", img_file.bright_green());
+    println!("[✓] SSH Key: {}", ssh_key_file.bright_green());
+
+    Ok(())
+}
+
 pub trait RootfsPreparer {
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)>;
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)>;
     fn name(&self) -> &'static str;
 }
 
@@ -72,13 +124,22 @@ impl RootfsPreparer for DebianPreparer {
         "Debian"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
-        let kernel_file = downloader::download_kernel(arch)?;
+
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
         let debootstrap_dir = format!("{}/debian-rootfs", app_dir);
 
         let arch = match arch {
@@ -186,13 +247,22 @@ impl RootfsPreparer for AlpinePreparer {
         "Alpine"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
-        let kernel_file = downloader::download_kernel(arch)?;
+
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
         let minirootfs = format!("{}/minirootfs", app_dir);
         downloader::download_alpine_rootfs(&minirootfs, arch)?;
 
@@ -310,13 +380,23 @@ impl RootfsPreparer for UbuntuPreparer {
         "Ubuntu"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
-        let (kernel_file, ubuntu_file, _ubuntu_version) = downloader::download_files(arch)?;
+        let (vmlinuz_file, ubuntu_file, _ubuntu_version) = downloader::download_files(arch)?;
+
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => vmlinuz_file,
+        };
 
         let squashfs_root_dir = format!("{}/squashfs_root", app_dir);
         rootfs::extract_squashfs(&ubuntu_file, &squashfs_root_dir)?;
@@ -363,13 +443,21 @@ impl RootfsPreparer for NixOSPreparer {
         "NixOS"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
         let nixos_rootfs = format!("{}/nixos-rootfs", app_dir);
         let squashfs_file = format!("{}/nixos-rootfs.squashfs", app_dir);
 
@@ -399,14 +487,22 @@ impl RootfsPreparer for FedoraPreparer {
         "Fedora"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
 
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
         let fedora_rootfs = format!("{}/fedora-rootfs", app_dir);
         let squashfs_file = format!("{}/fedora-rootfs.squashfs", app_dir);
 
@@ -442,14 +538,23 @@ impl RootfsPreparer for GentooPreparer {
         "Gentoo"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
 
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
+
         let gentoo_rootfs = format!("{}/gentoo-rootfs", app_dir);
         let squashfs_file = format!("{}/gentoo-rootfs.squashfs", app_dir);
 
@@ -480,14 +585,23 @@ impl RootfsPreparer for SlackwarePreparer {
         "Slackware"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
 
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
+
         let slackware_rootfs = format!("{}/slackware-rootfs", app_dir);
         let squashfs_file = format!("{}/slackware-rootfs.squashfs", app_dir);
 
@@ -523,14 +637,23 @@ impl RootfsPreparer for OpensusePreparer {
         "OpenSUSE (Leap)"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
 
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
+
         let opensuse_rootfs = format!("{}/opensuse-rootfs", app_dir);
         let squashfs_file = format!("{}/opensuse-rootfs.squashfs", app_dir);
 
@@ -559,14 +682,23 @@ impl RootfsPreparer for AlmalinuxPreparer {
         "AlmaLinux"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
 
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
+
         let almalinux_rootfs = format!("{}/almalinux-rootfs", app_dir);
         let squashfs_file = format!("{}/almalinux-rootfs.squashfs", app_dir);
 
@@ -590,14 +722,23 @@ impl RootfsPreparer for RockyLinuxPreparer {
         "RockyLinux"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
 
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
+
         let rockylinux_rootfs = format!("{}/rockylinux-rootfs", app_dir);
         let squashfs_file = format!("{}/rockylinux-rootfs.squashfs", app_dir);
 
@@ -621,14 +762,22 @@ impl RootfsPreparer for ArchlinuxPreparer {
         "ArchLinux"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
 
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
         let archlinux_rootfs = format!("{}/archlinux-rootfs", app_dir);
         let squashfs_file = format!("{}/archlinux-rootfs.squashfs", app_dir);
 
@@ -663,14 +812,23 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
         "OpenSUSE (Tumbleweed)"
     }
 
-    fn prepare(&self, arch: &str, app_dir: &str) -> Result<(String, String, String)> {
+    fn prepare(
+        &self,
+        arch: &str,
+        app_dir: &str,
+        kernel_file: Option<String>,
+    ) -> Result<(String, String, String)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
             arch.bright_green()
         );
 
-        let kernel_file = downloader::download_kernel(arch)?;
+        let kernel_file = match kernel_file {
+            Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
+            None => downloader::download_kernel(arch)?,
+        };
+
         let opensuse_rootfs = format!("{}/opensuse-tumbleweed-rootfs", app_dir);
         let squashfs_file = format!("{}/opensuse-tumbleweed-rootfs.squashfs", app_dir);
 
@@ -692,34 +850,4 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
         let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
         Ok((kernel_file, img_file, ssh_key_file))
     }
-}
-
-pub fn prepare(distro: Distro) -> Result<()> {
-    let arch = run_command("uname", &["-m"], false)?.stdout;
-    let arch = String::from_utf8_lossy(&arch).trim().to_string();
-    println!("[+] Detected architecture: {}", arch.bright_green());
-
-    let app_dir = config::get_config_dir()?;
-    let preparer: Box<dyn RootfsPreparer> = match distro {
-        Distro::Debian => Box::new(DebianPreparer),
-        Distro::Alpine => Box::new(AlpinePreparer),
-        Distro::Ubuntu => Box::new(UbuntuPreparer),
-        Distro::NixOS => Box::new(NixOSPreparer),
-        Distro::Fedora => Box::new(FedoraPreparer),
-        Distro::Gentoo => Box::new(GentooPreparer),
-        Distro::Slackware => Box::new(SlackwarePreparer),
-        Distro::Opensuse => Box::new(OpensusePreparer),
-        Distro::OpensuseTumbleweed => Box::new(OpensuseTumbleweedPreparer),
-        Distro::Almalinux => Box::new(AlmalinuxPreparer),
-        Distro::RockyLinux => Box::new(RockyLinuxPreparer),
-        Distro::Archlinux => Box::new(ArchlinuxPreparer),
-    };
-
-    let (kernel_file, img_file, ssh_key_file) = preparer.prepare(&arch, &app_dir)?;
-
-    println!("[✓] Kernel: {}", kernel_file.bright_green());
-    println!("[✓] Rootfs: {}", img_file.bright_green());
-    println!("[✓] SSH Key: {}", ssh_key_file.bright_green());
-
-    Ok(())
 }
