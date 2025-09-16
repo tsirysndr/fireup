@@ -1,24 +1,22 @@
-use actix_web::{delete, get, post, Responder};
+use std::sync::Arc;
+
+use actix_web::{delete, get, post, web, HttpResponse, Responder};
+use firecracker_state::repo;
 use serde::{Deserialize, Serialize};
+use sqlx::{Pool, Sqlite};
+use tokio_stream::StreamExt;
 use utoipa::ToSchema;
 use utoipa_actix_web::service_config::ServiceConfig;
+
+use crate::{
+    read_payload, services,
+    types::microvm::{CreateMicroVM, MicroVM},
+};
 
 const MICRO_VM: &str = "MicroVM";
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
-pub(super) struct MicroVM {
-    pub id: String,
-    pub name: String,
-    pub status: String,
-    pub vcpus: u8,
-    pub memory_mb: u32,
-    pub kernel_image: String,
-    pub rootfs_image: String,
-    pub ssh_keys: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone, ToSchema)]
-pub(super) enum ErrorResponse {
+pub enum ErrorResponse {
     NotFound(String),
     Conflict(String),
     Unauthorized(String),
@@ -32,8 +30,30 @@ pub(super) enum ErrorResponse {
     )
 )]
 #[post("")]
-async fn create_microvm() -> Result<impl Responder, actix_web::Error> {
-    Ok("MicroVM created")
+async fn create_microvm(
+    mut payload: web::Payload,
+    pool: web::Data<Arc<Pool<Sqlite>>>,
+) -> Result<impl Responder, actix_web::Error> {
+    let body = read_payload!(payload);
+    let params = match body.is_empty() {
+        true => CreateMicroVM {
+            name: None,
+            vcpus: None,
+            memory: None,
+            image: None,
+            vmlinux: None,
+            rootfs: None,
+            boot_args: None,
+            ssh_keys: None,
+            start: None,
+        },
+        false => serde_json::from_slice::<CreateMicroVM>(&body)?,
+    };
+    let pool = pool.get_ref().clone();
+    let vm = services::microvm::create_microvm(pool, params)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+    Ok(HttpResponse::Created().json(vm))
 }
 
 #[utoipa::path(
@@ -47,8 +67,21 @@ async fn create_microvm() -> Result<impl Responder, actix_web::Error> {
     )
 )]
 #[delete("/{id}")]
-async fn delete_microvm() -> Result<impl Responder, actix_web::Error> {
-    Ok("MicroVM deleted")
+async fn delete_microvm(
+    id: web::Path<String>,
+    pool: web::Data<Arc<Pool<Sqlite>>>,
+) -> Result<impl Responder, actix_web::Error> {
+    let id = id.into_inner();
+    let pool = pool.get_ref().clone();
+    let vm = services::microvm::delete_microvm(pool, &id)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    if vm.is_none() {
+        return Ok(HttpResponse::NotFound().json(ErrorResponse::NotFound(id)));
+    }
+
+    Ok(HttpResponse::Ok().json(vm))
 }
 
 #[utoipa::path(
@@ -62,8 +95,20 @@ async fn delete_microvm() -> Result<impl Responder, actix_web::Error> {
     )
 )]
 #[get("/{id}")]
-async fn get_microvm() -> Result<impl Responder, actix_web::Error> {
-    Ok("MicroVM details")
+async fn get_microvm(
+    id: web::Path<String>,
+    pool: web::Data<Arc<Pool<Sqlite>>>,
+) -> Result<impl Responder, actix_web::Error> {
+    let id = id.into_inner();
+    let pool = pool.get_ref().clone();
+    let vm = repo::virtual_machine::find(&pool, &id)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    Ok(match vm {
+        Some(vm) => HttpResponse::Ok().json(vm),
+        None => HttpResponse::NotFound().json(ErrorResponse::NotFound(id)),
+    })
 }
 
 #[utoipa::path(
@@ -73,8 +118,14 @@ async fn get_microvm() -> Result<impl Responder, actix_web::Error> {
     )
 )]
 #[get("")]
-async fn list_microvms() -> Result<impl Responder, actix_web::Error> {
-    Ok("List of MicroVMs")
+async fn list_microvms(
+    pool: web::Data<Arc<Pool<Sqlite>>>,
+) -> Result<impl Responder, actix_web::Error> {
+    let pool = pool.get_ref().clone();
+    let results = repo::virtual_machine::all(&pool)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+    Ok(HttpResponse::Ok().json(results))
 }
 
 #[utoipa::path(
@@ -88,8 +139,16 @@ async fn list_microvms() -> Result<impl Responder, actix_web::Error> {
     )
 )]
 #[post("/{id}/start")]
-async fn start_microvm() -> Result<impl Responder, actix_web::Error> {
-    Ok("MicroVM started")
+async fn start_microvm(
+    id: web::Path<String>,
+    pool: web::Data<Arc<Pool<Sqlite>>>,
+) -> Result<impl Responder, actix_web::Error> {
+    let id = id.into_inner();
+    let pool = pool.get_ref().clone();
+    let vm = services::microvm::start_microvm(pool, &id)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+    Ok(HttpResponse::Ok().json(vm))
 }
 
 #[utoipa::path(
@@ -103,8 +162,21 @@ async fn start_microvm() -> Result<impl Responder, actix_web::Error> {
     )
 )]
 #[post("/{id}/stop")]
-async fn stop_microvm() -> Result<impl Responder, actix_web::Error> {
-    Ok("MicroVM stopped")
+async fn stop_microvm(
+    id: web::Path<String>,
+    pool: web::Data<Arc<Pool<Sqlite>>>,
+) -> Result<impl Responder, actix_web::Error> {
+    let id = id.into_inner();
+    let pool = pool.get_ref().clone();
+    let vm = services::microvm::stop_microvm(pool, &id)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    if vm.is_none() {
+        return Ok(HttpResponse::NotFound().json(ErrorResponse::NotFound(id)));
+    }
+
+    Ok(HttpResponse::Ok().json(vm))
 }
 
 pub fn configure() -> impl FnOnce(&mut ServiceConfig) {

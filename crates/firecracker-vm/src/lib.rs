@@ -19,7 +19,7 @@ mod mqttc;
 mod network;
 pub mod types;
 
-pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Result<()> {
+pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Result<String> {
     let distro: Distro = options.clone().into();
     let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
 
@@ -144,7 +144,7 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
         .display()
         .to_string();
 
-    match vm_id {
+    let vm_id = match vm_id {
         Some(id) => {
             repo::virtual_machine::update(
                 &pool,
@@ -169,6 +169,7 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
                 },
             )
             .await?;
+            id
         }
         None => {
             repo::virtual_machine::create(
@@ -192,14 +193,14 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
                     ..Default::default()
                 },
             )
-            .await?;
+            .await?
         }
-    }
+    };
 
     println!("[✓] MicroVM booted and network is configured 🎉");
 
     println!("SSH into the VM using the following command:");
     println!("{} {}", "fireup ssh".bright_green(), name.bright_green());
 
-    Ok(())
+    Ok(vm_id)
 }

@@ -17,6 +17,7 @@ pub async fn find(pool: &Pool<Sqlite>, name: &str) -> Result<Option<VirtualMachi
     let result: Option<VirtualMachine> =
         sqlx::query_as("SELECT * FROM virtual_machines WHERE name = ? OR id = ?")
             .bind(name)
+            .bind(name)
             .fetch_optional(pool)
             .await
             .with_context(|| {
@@ -40,7 +41,7 @@ pub async fn find_by_project_dir(
     Ok(result)
 }
 
-pub async fn create(pool: &Pool<Sqlite>, vm: VirtualMachine) -> Result<(), Error> {
+pub async fn create(pool: &Pool<Sqlite>, vm: VirtualMachine) -> Result<String, Error> {
     let id = xid::new().to_string();
     let project_dir = match Path::exists(Path::new("fire.toml")) {
         true => Some(std::env::current_dir()?.display().to_string()),
@@ -85,7 +86,7 @@ pub async fn create(pool: &Pool<Sqlite>, vm: VirtualMachine) -> Result<(), Error
     .execute(pool)
     .await
     .with_context(|| "Failed to create virtual machine")?;
-    Ok(())
+    Ok(id)
 }
 
 pub async fn delete(pool: &Pool<Sqlite>, name: &str) -> Result<(), Error> {
