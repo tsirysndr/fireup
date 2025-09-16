@@ -4,8 +4,8 @@ use firecracker_vm::{constants::BRIDGE_DEV, mac::generate_unique_mac, types::VmO
 use owo_colors::OwoColorize;
 
 use crate::cmd::{
-    down::down, init::init, logs::logs, ps::list_all_instances, reset::reset, serve::serve,
-    ssh::ssh, start::start, status::status, stop::stop, up::up,
+    down::down, init::init, logs::logs, ps::list_all_instances, reset::reset, rm::remove,
+    serve::serve, ssh::ssh, start::start, status::status, stop::stop, up::up,
 };
 
 pub mod cmd;
@@ -129,6 +129,11 @@ fn cli() -> Command {
             Command::new("reset")
                 .arg(arg!([name] "Name of the Firecracker MicroVM to reset").required(false))
                 .about("Reset the Firecracker MicroVM"),
+        )
+        .subcommand(
+            Command::new("rm")
+                .arg(arg!(<name> "Name or ID of the Firecracker MicroVM to delete").required(true))
+                .about("Delete the Firecracker MicroVM"),
         )
         .subcommand(
             Command::new("serve")
@@ -282,6 +287,10 @@ async fn main() -> Result<()> {
                 ..Default::default()
             })
             .await?
+        }
+        Some(("rm", args)) => {
+            let name = args.get_one::<String>("name").cloned().unwrap();
+            remove(&name).await?
         }
         Some(("serve", _)) => serve().await?,
         _ => {
