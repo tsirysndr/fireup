@@ -63,7 +63,9 @@ pub async fn stop(name: Option<String>) -> Result<()> {
 
     let vm = vm.unwrap();
     if let Some(pid) = vm.pid {
-        run_command("kill", &["-s", "KILL", &pid.to_string()], true)?;
+        if run_command("kill", &["-s", "KILL", &pid.to_string()], true).is_err() {
+            println!("[!] Failed to kill process with PID {}.", pid);
+        }
     }
 
     run_command("rm", &["-rf", &config.api_socket], true)?;
@@ -82,9 +84,7 @@ pub async fn vm_is_running(name: &str) -> Result<bool> {
         if std::path::Path::new(&vm.api_socket).exists() {
             return Ok(true);
         }
-        if vm.status == "RUNNING" {
-            return Ok(true);
-        }
+        repo::virtual_machine::update_status(&pool, name, "STOPPED").await?;
     }
 
     Ok(false)

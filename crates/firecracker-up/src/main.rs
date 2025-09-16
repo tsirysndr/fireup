@@ -4,8 +4,8 @@ use firecracker_vm::{constants::BRIDGE_DEV, mac::generate_unique_mac, types::VmO
 use owo_colors::OwoColorize;
 
 use crate::cmd::{
-    down::down, init::init, logs::logs, ps::list_all_instances, reset::reset, ssh::ssh,
-    start::start, status::status, stop::stop, up::up,
+    down::down, init::init, logs::logs, ps::list_all_instances, reset::reset, serve::serve,
+    ssh::ssh, start::start, status::status, stop::stop, up::up,
 };
 
 pub mod cmd;
@@ -96,6 +96,12 @@ fn cli() -> Command {
                         .value_name("ARGS")
                         .help("Override boot arguments"),
                 )
+                .arg(
+                    Arg::new("ssh-keys")
+                        .long("ssh-keys")
+                        .value_name("SSH_KEYS")
+                        .help("Comma-separated list of SSH public keys to add to the VM"),
+                )
                 .about("Start a new Firecracker MicroVM"),
         )
         .subcommand(Command::new("down").about("Stop Firecracker MicroVM"))
@@ -107,7 +113,7 @@ fn cli() -> Command {
         .subcommand(
             Command::new("logs")
                 .arg(
-                    arg!(--follow -f "Follow the logs")
+                    arg!(-f --follow "Follow the logs")
                         .short('f')
                         .long("follow")
                         .default_value("false"),
@@ -123,6 +129,12 @@ fn cli() -> Command {
             Command::new("reset")
                 .arg(arg!([name] "Name of the Firecracker MicroVM to reset").required(false))
                 .about("Reset the Firecracker MicroVM"),
+        )
+        .subcommand(
+            Command::new("serve")
+                .about("Start fireup HTTP API server")
+                .arg(arg!(--host <host> "Host to bind the server"))
+                .arg(arg!(--port <port> "Port to bind the server")),
         )
         .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
         .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
@@ -164,6 +176,12 @@ fn cli() -> Command {
                 .long("boot-args")
                 .value_name("ARGS")
                 .help("Override boot arguments"),
+        )
+        .arg(
+            Arg::new("ssh-keys")
+                .long("ssh-keys")
+                .value_name("SSH_KEYS")
+                .help("Comma-separated list of SSH public keys to add to the VM"),
         )
 }
 
@@ -265,6 +283,7 @@ async fn main() -> Result<()> {
             })
             .await?
         }
+        Some(("serve", _)) => serve().await?,
         _ => {
             let debian = matches.get_one::<bool>("debian").copied().unwrap_or(false);
             let alpine = matches.get_one::<bool>("alpine").copied().unwrap_or(false);
