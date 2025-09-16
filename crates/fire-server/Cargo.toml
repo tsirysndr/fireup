@@ -1,0 +1,18 @@
+[package]
+name = "fire-server"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+actix-web = "4.11.0"
+anyhow = "1.0.99"
+owo-colors = "4.2.2"
+serde = { version = "1.0.225", features = ["serde_derive", "derive"] }
+utoipa = { version = "5.4.0", features = ["actix_extras"] }
+utoipa-actix-web = "0.1.2"
+utoipa-rapidoc = { version = "6.0.0", features = ["actix-web"] }
+utoipa-redoc = { version = "6.0.0", features = ["actix-web"] }
+utoipa-swagger-ui = { version = "9", features = ["actix-web"] }

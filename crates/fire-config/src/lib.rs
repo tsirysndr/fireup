@@ -25,6 +25,7 @@ pub struct Vm {
     pub tap: Option<String>,
     pub api_socket: Option<String>,
     pub mac: Option<String>,
+    pub ssh_keys: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,6 +49,7 @@ impl Default for FireConfig {
                 tap: None,
                 api_socket: None,
                 mac: None,
+                ssh_keys: None,
             },
             etcd: None,
         }
