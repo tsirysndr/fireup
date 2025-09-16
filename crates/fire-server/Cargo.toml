@@ -15,4 +15,4 @@ utoipa = { version = "5.4.0", features = ["actix_extras"] }
 utoipa-actix-web = "0.1.2"
 utoipa-rapidoc = { version = "6.0.0", features = ["actix-web"] }
 utoipa-redoc = { version = "6.0.0", features = ["actix-web"] }
-utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
+utoipa-swagger-ui = { version = "9", features = ["actix-web", "reqwest"] }
