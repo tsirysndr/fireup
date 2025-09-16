@@ -62,7 +62,7 @@ pub async fn list_all_instances(all: bool) -> Result<(), Error> {
 
     println!(
         "{:<name_length$} {:<distro_length$} {:<vcpu_length$} {:<memory_length$} {:<status_length$} {:<pid_length$} {:<ip_length$} {:<created_length$}",
-        "NAME", "DISTRO", "VCPU", "MEMORY", "STATUS", "PID", "IP", "CREATED"
+        "NAME", "IMAGE", "VCPU", "MEMORY", "STATUS", "PID", "IP", "CREATED"
     );
     for vm in vms {
         println!(
