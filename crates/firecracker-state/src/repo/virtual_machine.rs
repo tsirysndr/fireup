@@ -64,8 +64,9 @@ pub async fn create(pool: &Pool<Sqlite>, vm: VirtualMachine) -> Result<String, E
       ip_address,
       vmlinux,
       rootfs,
-      bootargs
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      bootargs,
+      ssh_keys
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&vm.name)
     .bind(&id)
@@ -83,6 +84,7 @@ pub async fn create(pool: &Pool<Sqlite>, vm: VirtualMachine) -> Result<String, E
     .bind(&vm.vmlinux)
     .bind(&vm.rootfs)
     .bind(&vm.bootargs)
+    .bind(&vm.ssh_keys)
     .execute(pool)
     .await
     .with_context(|| "Failed to create virtual machine")?;

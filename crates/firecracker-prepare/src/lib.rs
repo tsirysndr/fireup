@@ -53,7 +53,11 @@ impl ToString for Distro {
     }
 }
 
-pub fn prepare(distro: Distro, kernel_file: Option<String>) -> Result<()> {
+pub fn prepare(
+    distro: Distro,
+    kernel_file: Option<String>,
+    ssh_keys: Option<Vec<String>>,
+) -> Result<()> {
     let arch = run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     println!("[+] Detected architecture: {}", arch.bright_green());
@@ -85,13 +89,17 @@ pub fn prepare(distro: Distro, kernel_file: Option<String>) -> Result<()> {
         Distro::Archlinux => Box::new(ArchlinuxPreparer),
     };
 
-    let (kernel_file, img_file, ssh_key_file) = preparer.prepare(&arch, &app_dir, kernel_file)?;
+    let (kernel_file, img_file, ssh_key_file) =
+        preparer.prepare(&arch, &app_dir, kernel_file, ssh_keys)?;
 
     extract_vmlinuz(&kernel_file)?;
 
     println!("[✓] Kernel: {}", kernel_file.bright_green());
     println!("[✓] Rootfs: {}", img_file.bright_green());
-    println!("[✓] SSH Key: {}", ssh_key_file.bright_green());
+    match ssh_key_file {
+        None => println!("[✓] SSH Keys: User provided"),
+        Some(ssh_key_file) => println!("[✓] SSH Key: {}", ssh_key_file.bright_green()),
+    }
 
     Ok(())
 }
@@ -102,7 +110,8 @@ pub trait RootfsPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)>;
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)>;
     fn name(&self) -> &'static str;
 }
 
@@ -129,7 +138,8 @@ impl RootfsPreparer for DebianPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -202,7 +212,10 @@ impl RootfsPreparer for DebianPreparer {
             &["-p", &format!("{}/root/.ssh", debootstrap_dir)],
             true,
         )?;
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &debootstrap_dir)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &debootstrap_dir)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &debootstrap_dir)?,
+        }
 
         if !run_command("chroot", &[&debootstrap_dir, "which", "sshd"], true)
             .map(|output| output.status.success())
@@ -236,7 +249,10 @@ impl RootfsPreparer for DebianPreparer {
         rootfs::add_overlay_init(&debootstrap_dir)?;
         rootfs::create_squashfs(&debootstrap_dir, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
@@ -252,7 +268,8 @@ impl RootfsPreparer for AlpinePreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -364,12 +381,18 @@ impl RootfsPreparer for AlpinePreparer {
         )?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &minirootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &minirootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &minirootfs)?,
+        }
 
         let img_file = format!("{}/alpine-rootfs.img", app_dir);
         rootfs::create_squashfs(&minirootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
@@ -385,7 +408,8 @@ impl RootfsPreparer for UbuntuPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -425,14 +449,20 @@ impl RootfsPreparer for UbuntuPreparer {
         )?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &squashfs_root_dir)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &squashfs_root_dir)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &squashfs_root_dir)?,
+        }
 
         let img_file = format!("{}/ubuntu-rootfs.img", app_dir);
         rootfs::create_overlay_dirs(&squashfs_root_dir)?;
         rootfs::add_overlay_init(&squashfs_root_dir)?;
         rootfs::create_squashfs(&squashfs_root_dir, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
@@ -448,7 +478,8 @@ impl RootfsPreparer for NixOSPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -465,12 +496,18 @@ impl RootfsPreparer for NixOSPreparer {
         rootfs::extract_squashfs(&squashfs_file, &nixos_rootfs)?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key_nixos(&ssh_key_name, &nixos_rootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &nixos_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &nixos_rootfs)?,
+        }
 
         let img_file = format!("{}/nixos-rootfs.img", app_dir);
         rootfs::create_squashfs(&nixos_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         println!(
             "[+] {} rootfs prepared at: {}",
@@ -492,7 +529,8 @@ impl RootfsPreparer for FedoraPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -516,12 +554,18 @@ impl RootfsPreparer for FedoraPreparer {
         )?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &fedora_rootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &fedora_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &fedora_rootfs)?,
+        }
 
         let img_file = format!("{}/fedora-rootfs.img", app_dir);
         rootfs::create_squashfs(&fedora_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         println!(
             "[+] {} rootfs prepared at: {}",
@@ -543,7 +587,8 @@ impl RootfsPreparer for GentooPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -569,12 +614,18 @@ impl RootfsPreparer for GentooPreparer {
         )?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &gentoo_rootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &gentoo_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &gentoo_rootfs)?,
+        }
 
         let img_file = format!("{}/gentoo-rootfs.img", app_dir);
         rootfs::create_squashfs(&gentoo_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
@@ -590,7 +641,8 @@ impl RootfsPreparer for SlackwarePreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -621,12 +673,18 @@ impl RootfsPreparer for SlackwarePreparer {
         )?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &slackware_rootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &slackware_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &slackware_rootfs)?,
+        }
 
         let img_file = format!("{}/slackware-rootfs.img", app_dir);
         rootfs::create_squashfs(&slackware_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
@@ -642,7 +700,8 @@ impl RootfsPreparer for OpensusePreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -667,12 +726,19 @@ impl RootfsPreparer for OpensusePreparer {
         )?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &opensuse_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?,
+        }
 
         let img_file = format!("{}/opensuse-rootfs.img", app_dir);
         rootfs::create_squashfs(&opensuse_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
+
         Ok((kernel_file, img_file, ssh_key_file))
     }
 }
@@ -687,7 +753,8 @@ impl RootfsPreparer for AlmalinuxPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -706,12 +773,18 @@ impl RootfsPreparer for AlmalinuxPreparer {
         rootfs::extract_squashfs(&squashfs_file, &almalinux_rootfs)?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &almalinux_rootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &almalinux_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &almalinux_rootfs)?,
+        }
 
         let img_file = format!("{}/almalinux-rootfs.img", app_dir);
         rootfs::create_squashfs(&almalinux_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
@@ -727,7 +800,8 @@ impl RootfsPreparer for RockyLinuxPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -746,12 +820,18 @@ impl RootfsPreparer for RockyLinuxPreparer {
         rootfs::extract_squashfs(&squashfs_file, &rockylinux_rootfs)?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &rockylinux_rootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &rockylinux_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &rockylinux_rootfs)?,
+        }
 
         let img_file = format!("{}/rockylinux-rootfs.img", app_dir);
         rootfs::create_squashfs(&rockylinux_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
@@ -767,7 +847,8 @@ impl RootfsPreparer for ArchlinuxPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -796,12 +877,19 @@ impl RootfsPreparer for ArchlinuxPreparer {
         )?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &archlinux_rootfs)?;
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &archlinux_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &archlinux_rootfs)?,
+        }
 
         let img_file = format!("{}/archlinux-rootfs.img", app_dir);
+
         rootfs::create_squashfs(&archlinux_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
@@ -817,7 +905,8 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
         arch: &str,
         app_dir: &str,
         kernel_file: Option<String>,
-    ) -> Result<(String, String, String)> {
+        ssh_keys: Option<Vec<String>>,
+    ) -> Result<(String, String, Option<String>)> {
         println!(
             "[+] Preparing {} rootfs for {}...",
             self.name(),
@@ -842,12 +931,20 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
         )?;
 
         let ssh_key_name = "id_rsa";
-        ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?;
+
+        match ssh_keys {
+            Some(ref keys) => ssh::copy_ssh_keys(keys, &opensuse_rootfs)?,
+            None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?,
+        }
 
         let img_file = format!("{}/opensuse-tumbleweed-rootfs.img", app_dir);
         rootfs::create_squashfs(&opensuse_rootfs, &img_file)?;
 
-        let ssh_key_file = format!("{}/{}", app_dir, ssh_key_name);
+        let ssh_key_file = match ssh_keys {
+            Some(_) => None,
+            None => Some(format!("{}/{}", app_dir, ssh_key_name)),
+        };
+
         Ok((kernel_file, img_file, ssh_key_file))
     }
 }

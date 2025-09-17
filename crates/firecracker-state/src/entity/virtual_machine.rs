@@ -19,6 +19,7 @@ pub struct VirtualMachine {
     pub vmlinux: Option<String>,
     pub rootfs: Option<String>,
     pub bootargs: Option<String>,
+    pub ssh_keys: Option<String>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub created_at: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]

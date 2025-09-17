@@ -43,6 +43,9 @@ pub async fn start(name: &str) -> Result<(), Error> {
         api_socket: vm.api_socket,
         mac_address: vm.mac_address,
         etcd,
+        ssh_keys: vm
+            .ssh_keys
+            .map(|keys| keys.split(',').map(|s| s.to_string()).collect()),
     })
     .await?;
 

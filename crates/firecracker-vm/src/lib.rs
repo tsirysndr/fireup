@@ -165,6 +165,7 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
                     vmlinux: Some(kernel),
                     rootfs: Some(rootfs),
                     bootargs: options.bootargs.clone(),
+                    ssh_keys: options.ssh_keys.as_ref().map(|keys| keys.join(",")),
                     ..Default::default()
                 },
             )
@@ -190,6 +191,7 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
                     vmlinux: Some(kernel),
                     rootfs: Some(rootfs),
                     bootargs: options.bootargs.clone(),
+                    ssh_keys: options.ssh_keys.as_ref().map(|keys| keys.join(",")),
                     ..Default::default()
                 },
             )
