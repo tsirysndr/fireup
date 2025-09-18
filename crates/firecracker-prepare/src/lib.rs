@@ -1,4 +1,4 @@
-use std::fs;
+use std::{env, fs};
 
 use anyhow::Result;
 use owo_colors::OwoColorize;
@@ -18,6 +18,10 @@ pub mod ssh;
 pub mod vmlinuz;
 
 const BRIDGE_IP: &str = "172.16.0.1";
+
+fn get_kernel_version() -> String {
+    env::var("KERNEL_VERSION").unwrap_or_else(|_| "6.16.7".to_string())
+}
 
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
 pub enum Distro {
@@ -58,7 +62,7 @@ pub fn prepare(
     distro: Distro,
     kernel_file: Option<String>,
     ssh_keys: Option<Vec<String>>,
-) -> Result<()> {
+) -> Result<String> {
     let arch = run_command("uname", &["-m"], false)?.stdout;
     let arch = String::from_utf8_lossy(&arch).trim().to_string();
     println!("[+] Detected architecture: {}", arch.bright_green());
@@ -102,7 +106,7 @@ pub fn prepare(
         Some(ssh_key_file) => println!("[✓] SSH Key: {}", ssh_key_file.bright_green()),
     }
 
-    Ok(())
+    Ok(kernel_file)
 }
 
 pub trait RootfsPreparer {
@@ -149,8 +153,9 @@ impl RootfsPreparer for DebianPreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
+
         let debootstrap_dir = format!("{}/debian-rootfs", app_dir);
 
         let arch = match arch {
@@ -288,7 +293,7 @@ impl RootfsPreparer for AlpinePreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
         let minirootfs = format!("{}/minirootfs", app_dir);
         downloader::download_alpine_rootfs(&minirootfs, arch)?;
@@ -513,7 +518,7 @@ impl RootfsPreparer for NixOSPreparer {
         );
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
         let nixos_rootfs = format!("{}/nixos-rootfs", app_dir);
         let squashfs_file = format!("{}/nixos-rootfs.squashfs", app_dir);
@@ -573,7 +578,7 @@ impl RootfsPreparer for FedoraPreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
         let fedora_rootfs = format!("{}/fedora-rootfs", app_dir);
         let squashfs_file = format!("{}/fedora-rootfs.squashfs", app_dir);
@@ -639,7 +644,7 @@ impl RootfsPreparer for GentooPreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
 
         let gentoo_rootfs = format!("{}/gentoo-rootfs", app_dir);
@@ -701,7 +706,7 @@ impl RootfsPreparer for SlackwarePreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
 
         let slackware_rootfs = format!("{}/slackware-rootfs", app_dir);
@@ -768,7 +773,7 @@ impl RootfsPreparer for OpensusePreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
 
         let opensuse_rootfs = format!("{}/opensuse-rootfs", app_dir);
@@ -829,7 +834,7 @@ impl RootfsPreparer for AlmalinuxPreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
 
         let almalinux_rootfs = format!("{}/almalinux-rootfs", app_dir);
@@ -884,7 +889,7 @@ impl RootfsPreparer for RockyLinuxPreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
 
         let rockylinux_rootfs = format!("{}/rockylinux-rootfs", app_dir);
@@ -938,7 +943,7 @@ impl RootfsPreparer for ArchlinuxPreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
         let archlinux_rootfs = format!("{}/archlinux-rootfs", app_dir);
         let squashfs_file = format!("{}/archlinux-rootfs.squashfs", app_dir);
@@ -1003,7 +1008,7 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
 
         let kernel_file = match kernel_file {
             Some(k) => fs::canonicalize(k)?.to_str().unwrap().to_string(),
-            None => downloader::download_kernel(arch)?,
+            None => downloader::download_kernel(&get_kernel_version(), arch)?,
         };
 
         let opensuse_rootfs = format!("{}/opensuse-tumbleweed-rootfs", app_dir);

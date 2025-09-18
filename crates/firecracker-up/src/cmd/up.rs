@@ -78,12 +78,12 @@ pub async fn up(options: VmOptions) -> Result<(), Error> {
         }
     }
 
-    firecracker_prepare::prepare(
+    let kernel_file = firecracker_prepare::prepare(
         options.clone().into(),
         options.vmlinux.clone(),
         options.ssh_keys.clone(),
     )?;
-    firecracker_vm::setup(&options, pid, vm_id).await?;
+    firecracker_vm::setup(&options, pid, vm_id, &kernel_file).await?;
     Ok(())
 }
 
