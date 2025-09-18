@@ -76,6 +76,9 @@ pub async fn start_microvm(pool: Arc<Pool<Sqlite>>, id: &str) -> Result<VirtualM
         api_socket: vm.api_socket.clone(),
         mac_address: vm.mac_address.clone(),
         etcd: None,
+        ssh_keys: vm
+            .ssh_keys
+            .map(|keys| keys.split(',').map(|s| s.to_string()).collect()),
     };
 
     let vm = start(pool, options, Some(vm.id)).await?;
@@ -146,7 +149,18 @@ async fn start(
         }
     }
 
-    firecracker_prepare::prepare(options.clone().into(), options.vmlinux.clone())?;
+    let mut ssh_keys = options.ssh_keys.clone();
+    if let Some(vm_id) = vm_id.clone() {
+        let vm = repo::virtual_machine::find(&pool, &vm_id).await?;
+        if ssh_keys.is_none() {
+            ssh_keys = vm.and_then(|vm| {
+                vm.ssh_keys
+                    .map(|keys| keys.split(',').map(|s| s.to_string()).collect())
+            });
+        }
+    }
+
+    firecracker_prepare::prepare(options.clone().into(), options.vmlinux.clone(), ssh_keys)?;
     let vm_id = firecracker_vm::setup(&options, pid, vm_id).await?;
     let vm = repo::virtual_machine::find(&pool, &vm_id)
         .await?

@@ -27,6 +27,7 @@ pub struct VmOptions {
     pub api_socket: String,
     pub mac_address: String,
     pub etcd: Option<EtcdConfig>,
+    pub ssh_keys: Option<Vec<String>>,
 }
 
 impl From<FireConfig> for VmOptions {
@@ -55,6 +56,7 @@ impl From<FireConfig> for VmOptions {
             api_socket: vm.api_socket.unwrap_or(FIRECRACKER_SOCKET.into()),
             mac_address: vm.mac.unwrap_or(FC_MAC.into()),
             etcd: config.etcd.clone(),
+            ssh_keys: vm.ssh_keys.clone(),
         }
     }
 }

@@ -240,6 +240,9 @@ async fn main() -> Result<()> {
                 .get_one::<String>("mac-address")
                 .cloned()
                 .unwrap_or(default_mac);
+            let ssh_keys = args
+                .get_one::<String>("ssh-keys")
+                .map(|s| s.split(',').map(|s| s.trim().to_string()).collect());
             let options = VmOptions {
                 debian: args.get_one::<bool>("debian").copied(),
                 alpine: args.get_one::<bool>("alpine").copied(),
@@ -263,6 +266,7 @@ async fn main() -> Result<()> {
                 api_socket,
                 mac_address,
                 etcd: None,
+                ssh_keys,
             };
             up(options).await?
         }
@@ -280,8 +284,11 @@ async fn main() -> Result<()> {
             ssh(pool, name).await?
         }
         Some(("reset", args)) => {
-            let name = args.get_one::<String>("name").cloned().unwrap();
-            let api_socket = format!("/tmp/firecracker-{}.sock", name);
+            let name = args.get_one::<String>("name").cloned();
+            let api_socket = match name {
+                Some(name) => format!("/tmp/firecracker-{}.sock", name),
+                None => String::from(""),
+            };
             reset(VmOptions {
                 api_socket,
                 ..Default::default()
@@ -348,6 +355,9 @@ async fn main() -> Result<()> {
                 .get_one::<String>("mac-address")
                 .cloned()
                 .unwrap_or(default_mac);
+            let ssh_keys = matches
+                .get_one::<String>("ssh-keys")
+                .map(|s| s.split(',').map(|s| s.trim().to_string()).collect());
 
             let options = VmOptions {
                 debian: Some(debian),
@@ -372,6 +382,7 @@ async fn main() -> Result<()> {
                 api_socket,
                 mac_address,
                 etcd: None,
+                ssh_keys,
             };
             up(options).await?
         }

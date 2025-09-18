@@ -52,6 +52,21 @@ pub async fn create_connection_pool() -> Result<Pool<Sqlite>, Error> {
     ))
     .await?;
 
+    match pool
+        .execute(include_str!(
+            "../migrations/20250917153615_add_ssh_keys.sql"
+        ))
+        .await
+    {
+        Ok(_) => (),
+        Err(e) => {
+            if e.to_string().contains("duplicate column name: ssh_keys") {
+            } else {
+                return Err(anyhow!("Failed to apply migration: {}", e));
+            }
+        }
+    }
+
     sqlx::query("PRAGMA journal_mode=WAL")
         .execute(&pool)
         .await?;
