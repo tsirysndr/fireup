@@ -14,7 +14,6 @@ firecracker-process = { path = "../firecracker-process" }
 firecracker-state = { path = "../firecracker-state" }
 fire-config = { path = "../fire-config" }
 fire-server = { path = "../fire-server" }
-fire-client = { path = "../fire-client" }
 clap = "4.5.41"
 owo-colors = "4.2.2"
 glob = "0.3.2"
