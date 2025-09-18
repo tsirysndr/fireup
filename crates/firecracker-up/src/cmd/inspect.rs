@@ -1,7 +1,7 @@
 use std::process;
 
 use anyhow::Error;
-use firecracker_state::{ repo};
+use firecracker_state::repo;
 use serde_json::json;
 
 pub async fn inspect_microvm(id: &str) -> Result<(), Error> {

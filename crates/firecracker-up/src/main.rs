@@ -4,8 +4,9 @@ use firecracker_vm::{constants::BRIDGE_DEV, mac::generate_unique_mac, types::VmO
 use owo_colors::OwoColorize;
 
 use crate::cmd::{
-    down::down, init::init, logs::logs, ps::list_all_instances, reset::reset, rm::remove, serve::serve, ssh::ssh, start::start, status::status, stop::stop, up::up,
-    inspect::inspect_microvm,
+    down::down, init::init, inspect::inspect_microvm, logs::logs, ps::list_all_instances,
+    reset::reset, rm::remove, serve::serve, ssh::ssh, start::start, status::status, stop::stop,
+    up::up,
 };
 
 pub mod cmd;
@@ -30,9 +31,10 @@ fn cli() -> Command {
     Command::new("fireup")
         .version(env!("CARGO_PKG_VERSION"))
         .about(&banner)
-        .subcommand(Command::new("init").about(
-            "Create a new MicroVM configuration `fire.toml` in the current directory",
-        ))
+        .subcommand(
+            Command::new("init")
+                .about("Create a new MicroVM configuration `fire.toml` in the current directory"),
+        )
         .subcommand(
             Command::new("ps")
                 .alias("list")
