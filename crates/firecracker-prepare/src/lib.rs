@@ -3,6 +3,7 @@ use std::fs;
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
     command::{run_command, run_command_with_stdout_inherit},
@@ -212,6 +213,16 @@ impl RootfsPreparer for DebianPreparer {
             &["-p", &format!("{}/root/.ssh", debootstrap_dir)],
             true,
         )?;
+
+        let img_file = format!("{}/debian-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", debootstrap_dir),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         match ssh_keys {
             Some(ref keys) => ssh::copy_ssh_keys(keys, &debootstrap_dir)?,
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &debootstrap_dir)?,
@@ -244,7 +255,6 @@ impl RootfsPreparer for DebianPreparer {
             )?;
         }
 
-        let img_file = format!("{}/debian-rootfs.img", app_dir);
         rootfs::create_overlay_dirs(&debootstrap_dir)?;
         rootfs::add_overlay_init(&debootstrap_dir)?;
         rootfs::create_squashfs(&debootstrap_dir, &img_file)?;
@@ -380,13 +390,21 @@ impl RootfsPreparer for AlpinePreparer {
             true,
         )?;
 
+        let img_file = format!("{}/alpine-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", minirootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         let ssh_key_name = "id_rsa";
         match ssh_keys {
             Some(ref keys) => ssh::copy_ssh_keys(keys, &minirootfs)?,
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &minirootfs)?,
         }
 
-        let img_file = format!("{}/alpine-rootfs.img", app_dir);
         rootfs::create_squashfs(&minirootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -448,13 +466,21 @@ impl RootfsPreparer for UbuntuPreparer {
             true,
         )?;
 
+        let img_file = format!("{}/ubuntu-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", squashfs_root_dir),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         let ssh_key_name = "id_rsa";
         match ssh_keys {
             Some(ref keys) => ssh::copy_ssh_keys(keys, &squashfs_root_dir)?,
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &squashfs_root_dir)?,
         }
 
-        let img_file = format!("{}/ubuntu-rootfs.img", app_dir);
         rootfs::create_overlay_dirs(&squashfs_root_dir)?;
         rootfs::add_overlay_init(&squashfs_root_dir)?;
         rootfs::create_squashfs(&squashfs_root_dir, &img_file)?;
@@ -495,13 +521,21 @@ impl RootfsPreparer for NixOSPreparer {
         downloader::download_nixos_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &nixos_rootfs)?;
 
+        let img_file = format!("{}/nixos-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", nixos_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         let ssh_key_name = "id_rsa";
         match ssh_keys {
             Some(ref keys) => ssh::copy_ssh_keys(keys, &nixos_rootfs)?,
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &nixos_rootfs)?,
         }
 
-        let img_file = format!("{}/nixos-rootfs.img", app_dir);
         rootfs::create_squashfs(&nixos_rootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -547,6 +581,15 @@ impl RootfsPreparer for FedoraPreparer {
         downloader::download_fedora_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &fedora_rootfs)?;
 
+        let img_file = format!("{}/fedora-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", fedora_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         run_command(
             "chroot",
             &[&fedora_rootfs, "systemctl", "enable", "sshd"],
@@ -559,7 +602,6 @@ impl RootfsPreparer for FedoraPreparer {
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &fedora_rootfs)?,
         }
 
-        let img_file = format!("{}/fedora-rootfs.img", app_dir);
         rootfs::create_squashfs(&fedora_rootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -613,13 +655,21 @@ impl RootfsPreparer for GentooPreparer {
             true,
         )?;
 
+        let img_file = format!("{}/gentoo-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", gentoo_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         let ssh_key_name = "id_rsa";
         match ssh_keys {
             Some(ref keys) => ssh::copy_ssh_keys(keys, &gentoo_rootfs)?,
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &gentoo_rootfs)?,
         }
 
-        let img_file = format!("{}/gentoo-rootfs.img", app_dir);
         rootfs::create_squashfs(&gentoo_rootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -660,6 +710,15 @@ impl RootfsPreparer for SlackwarePreparer {
         downloader::download_slackware_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &slackware_rootfs)?;
 
+        let img_file = format!("{}/slackware-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", slackware_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         run_command(
             "chroot",
             &[
@@ -678,7 +737,6 @@ impl RootfsPreparer for SlackwarePreparer {
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &slackware_rootfs)?,
         }
 
-        let img_file = format!("{}/slackware-rootfs.img", app_dir);
         rootfs::create_squashfs(&slackware_rootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -719,6 +777,15 @@ impl RootfsPreparer for OpensusePreparer {
         downloader::download_opensuse_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &opensuse_rootfs)?;
 
+        let img_file = format!("{}/opensuse-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", opensuse_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         run_command(
             "chroot",
             &[&opensuse_rootfs, "systemctl", "enable", "sshd"],
@@ -731,7 +798,6 @@ impl RootfsPreparer for OpensusePreparer {
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?,
         }
 
-        let img_file = format!("{}/opensuse-rootfs.img", app_dir);
         rootfs::create_squashfs(&opensuse_rootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -772,13 +838,21 @@ impl RootfsPreparer for AlmalinuxPreparer {
         downloader::download_almalinux_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &almalinux_rootfs)?;
 
+        let img_file = format!("{}/almalinux-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", almalinux_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         let ssh_key_name = "id_rsa";
         match ssh_keys {
             Some(ref keys) => ssh::copy_ssh_keys(keys, &almalinux_rootfs)?,
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &almalinux_rootfs)?,
         }
 
-        let img_file = format!("{}/almalinux-rootfs.img", app_dir);
         rootfs::create_squashfs(&almalinux_rootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -819,13 +893,20 @@ impl RootfsPreparer for RockyLinuxPreparer {
         downloader::download_rockylinux_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &rockylinux_rootfs)?;
 
+        let img_file = format!("{}/rockylinux-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", rockylinux_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         let ssh_key_name = "id_rsa";
         match ssh_keys {
             Some(ref keys) => ssh::copy_ssh_keys(keys, &rockylinux_rootfs)?,
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &rockylinux_rootfs)?,
         }
-
-        let img_file = format!("{}/rockylinux-rootfs.img", app_dir);
         rootfs::create_squashfs(&rockylinux_rootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -865,6 +946,15 @@ impl RootfsPreparer for ArchlinuxPreparer {
         downloader::download_archlinux_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &archlinux_rootfs)?;
 
+        let img_file = format!("{}/archlinux-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", archlinux_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         run_command(
             "chroot",
             &[&archlinux_rootfs, "systemctl", "enable", "sshd"],
@@ -881,8 +971,6 @@ impl RootfsPreparer for ArchlinuxPreparer {
             Some(ref keys) => ssh::copy_ssh_keys(keys, &archlinux_rootfs)?,
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &archlinux_rootfs)?,
         }
-
-        let img_file = format!("{}/archlinux-rootfs.img", app_dir);
 
         rootfs::create_squashfs(&archlinux_rootfs, &img_file)?;
 
@@ -924,6 +1012,15 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
         downloader::download_opensuse_tumbleweed_rootfs(arch)?;
         rootfs::extract_squashfs(&squashfs_file, &opensuse_rootfs)?;
 
+        let img_file = format!("{}/opensuse-tumbleweed-rootfs.img", app_dir);
+        if ssh_keys_changed(
+            &ssh_keys,
+            &format!("{}/root/.ssh/authorized_keys", opensuse_rootfs),
+        )? {
+            println!("[+] SSH keys have changed, removing existing image to regenerate.");
+            run_command("rm", &["-f", &img_file], true)?;
+        }
+
         run_command(
             "chroot",
             &[&opensuse_rootfs, "systemctl", "enable", "sshd"],
@@ -937,7 +1034,6 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
             None => ssh::generate_and_copy_ssh_key(&ssh_key_name, &opensuse_rootfs)?,
         }
 
-        let img_file = format!("{}/opensuse-tumbleweed-rootfs.img", app_dir);
         rootfs::create_squashfs(&opensuse_rootfs, &img_file)?;
 
         let ssh_key_file = match ssh_keys {
@@ -947,4 +1043,33 @@ impl RootfsPreparer for OpensuseTumbleweedPreparer {
 
         Ok((kernel_file, img_file, ssh_key_file))
     }
+}
+
+fn ssh_keys_changed(ssh_keys: &Option<Vec<String>>, authorized_keys_path: &str) -> Result<bool> {
+    if ssh_keys.is_none() {
+        return Ok(false);
+    }
+    let ssh_keys = ssh_keys.as_ref().unwrap();
+    let mut hasher = Sha256::new();
+    let ssh_keys_str = ssh_keys.join("\n");
+
+    let ssh_keys_str = match ssh_keys_str.ends_with('\n') {
+        true => ssh_keys_str,
+        false => format!("{}\n", ssh_keys_str),
+    };
+
+    hasher.update(ssh_keys_str.as_bytes());
+    let ssh_keys_hash = hasher.finalize();
+
+    if !run_command("test", &["-e", authorized_keys_path], true).is_ok() {
+        return Ok(true);
+    }
+
+    let output = run_command("cat", &[authorized_keys_path], true)?;
+    let authorized_keys_content = String::from_utf8_lossy(&output.stdout);
+    let mut hasher = Sha256::new();
+    hasher.update(authorized_keys_content.as_bytes());
+    let authorized_keys_hash = hasher.finalize();
+
+    Ok(ssh_keys_hash != authorized_keys_hash)
 }
