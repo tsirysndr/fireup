@@ -3,12 +3,15 @@ use owo_colors::OwoColorize;
 use regex::Regex;
 use std::path::Path;
 
-use crate::command::{run_command, run_command_with_stdout_inherit};
+use crate::{
+    command::{run_command, run_command_with_stdout_inherit},
+    get_kernel_version,
+};
 
 pub fn download_files(arch: &str) -> Result<(String, String, String)> {
     let app_dir =
         crate::config::get_config_dir().with_context(|| "Failed to get configuration directory")?;
-    let kernel_file = download_kernel(arch)?;
+    let kernel_file = download_kernel(&get_kernel_version(), arch)?;
 
     let ci_version = get_ci_version().with_context(|| "Failed to get CI version")?;
 
@@ -73,7 +76,7 @@ fn get_ci_version() -> Result<String> {
     Ok(ci_version.to_string())
 }
 
-pub fn download_kernel(arch: &str) -> Result<String> {
+pub fn download_kernel_from_firecracker(arch: &str) -> Result<String> {
     let app_dir =
         crate::config::get_config_dir().with_context(|| "Failed to get configuration directory")?;
     let ci_version =
@@ -96,6 +99,18 @@ pub fn download_kernel(arch: &str) -> Result<String> {
         &kernel_file,
     )?;
 
+    Ok(kernel_file)
+}
+
+pub fn download_kernel(version: &str, arch: &str) -> Result<String> {
+    let app_dir =
+        crate::config::get_config_dir().with_context(|| "Failed to get configuration directory")?;
+    let kernel_file = format!("{}/vmlinux-{}.{}", app_dir, version, arch);
+    let kernel_url = &format!(
+        "https://github.com/tsirysndr/vmlinux-builder/releases/download/{}/vmlinux-{}.{}",
+        version, version, arch,
+    );
+    download_file(kernel_url, &kernel_file)?;
     Ok(kernel_file)
 }
 
@@ -157,7 +172,7 @@ fn download_file(url: &str, output: &str) -> Result<()> {
         return Ok(());
     }
     println!("Downloading: {}", output.bright_green());
-    run_command_with_stdout_inherit("wget", &["-O", output, url], false)?;
+    run_command_with_stdout_inherit("curl", &["-L", "-o", output, url], false)?;
     Ok(())
 }
 

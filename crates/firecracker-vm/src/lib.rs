@@ -19,7 +19,12 @@ mod mqttc;
 mod network;
 pub mod types;
 
-pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Result<String> {
+pub async fn setup(
+    options: &VmOptions,
+    pid: u32,
+    vm_id: Option<String>,
+    kernel_file: &str,
+) -> Result<String> {
     let distro: Distro = options.clone().into();
     let app_dir = get_config_dir().with_context(|| "Failed to get configuration directory")?;
 
@@ -43,16 +48,11 @@ pub async fn setup(options: &VmOptions, pid: u32, vm_id: Option<String>) -> Resu
     fs::File::create(&logfile)
         .with_context(|| format!("Failed to create log file: {}", logfile))?;
 
-    let kernel = glob::glob(format!("{}/vmlinux*", app_dir).as_str())
-        .with_context(|| "Failed to glob kernel files")?
-        .last()
-        .ok_or_else(|| anyhow!("No kernel file found"))?
-        .with_context(|| "Failed to get kernel path")?;
-    let kernel = fs::canonicalize(&kernel)
+    let kernel = fs::canonicalize(kernel_file)
         .with_context(|| {
             format!(
                 "Failed to resolve absolute path for kernel: {}",
-                kernel.display()
+                kernel_file
             )
         })?
         .display()

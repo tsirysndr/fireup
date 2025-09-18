@@ -160,8 +160,9 @@ async fn start(
         }
     }
 
-    firecracker_prepare::prepare(options.clone().into(), options.vmlinux.clone(), ssh_keys)?;
-    let vm_id = firecracker_vm::setup(&options, pid, vm_id).await?;
+    let kernel_file =
+        firecracker_prepare::prepare(options.clone().into(), options.vmlinux.clone(), ssh_keys)?;
+    let vm_id = firecracker_vm::setup(&options, pid, vm_id, &kernel_file).await?;
     let vm = repo::virtual_machine::find(&pool, &vm_id)
         .await?
         .ok_or_else(|| Error::msg("Failed to retrieve the created VM"))?;
