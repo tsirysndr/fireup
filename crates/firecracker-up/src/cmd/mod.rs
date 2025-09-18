@@ -1,5 +1,6 @@
 pub mod down;
 pub mod init;
+pub mod inspect;
 pub mod logs;
 pub mod ps;
 pub mod reset;

@@ -1006,6 +1006,7 @@ dependencies = [
  "names",
  "num_cpus",
  "owo-colors",
+ "serde_json",
  "sqlx",
  "tokio",
 ]
