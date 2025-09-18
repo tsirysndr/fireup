@@ -4,8 +4,8 @@ use firecracker_vm::{constants::BRIDGE_DEV, mac::generate_unique_mac, types::VmO
 use owo_colors::OwoColorize;
 
 use crate::cmd::{
-    down::down, init::init, logs::logs, ps::list_all_instances, reset::reset, rm::remove,
-    serve::serve, ssh::ssh, start::start, status::status, stop::stop, up::up,
+    down::down, init::init, logs::logs, ps::list_all_instances, reset::reset, rm::remove, serve::serve, ssh::ssh, start::start, status::status, stop::stop, up::up,
+    inspect::inspect_microvm,
 };
 
 pub mod cmd;
@@ -31,7 +31,7 @@ fn cli() -> Command {
         .version(env!("CARGO_PKG_VERSION"))
         .about(&banner)
         .subcommand(Command::new("init").about(
-            "Create a new Firecracker MicroVM configuration `fire.toml` in the current directory",
+            "Create a new MicroVM configuration `fire.toml` in the current directory",
         ))
         .subcommand(
             Command::new("ps")
@@ -140,6 +140,11 @@ fn cli() -> Command {
                 .about("Start fireup HTTP API server")
                 .arg(arg!(--host <host> "Host to bind the server"))
                 .arg(arg!(--port <port> "Port to bind the server")),
+        )
+        .subcommand(
+            Command::new("inspect")
+                .arg(arg!(<name> "Name or ID of the Firecracker MicroVM to inspect").required(true))
+                .about("Inspect the Firecracker MicroVM details"),
         )
         .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
         .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
@@ -300,6 +305,10 @@ async fn main() -> Result<()> {
             remove(&name).await?
         }
         Some(("serve", _)) => serve().await?,
+        Some(("inspect", args)) => {
+            let name = args.get_one::<String>("name").cloned().unwrap();
+            inspect_microvm(&name).await?;
+        }
         _ => {
             let debian = matches.get_one::<bool>("debian").copied().unwrap_or(false);
             let alpine = matches.get_one::<bool>("alpine").copied().unwrap_or(false);

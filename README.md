@@ -37,12 +37,60 @@ sudo apt-get update
 sudo apt-get install fireup
 ```
 
-## Subcommands
-- `init`: Initializes a new configuration file `fire.toml` in the current directory.
-- `up`: Starts the Firecracker microVM, preparing assets and configuring the network if needed.
-- `down`: Stops the running Firecracker microVM.
-- `status`: Checks the status of the Firecracker microVM (running, stopped, or errored).
-- `logs`: Displays the logs of the Firecracker microVM from the log file.
-- `ssh`: Connects to the Firecracker microVM via SSH.
-- `reset`: Resets the Firecracker microVM, stopping it and preparing it for a fresh start.
-- `help`: Prints help information for the CLI or specific subcommands.
+## Usage
+
+```bash
+
+     _______           __  __
+    / ____(_)_______  / / / /___
+   / /_  / / ___/ _ \/ / / / __ \
+  / __/ / / /  /  __/ /_/ / /_/ /
+ /_/   /_/_/   \___/\____/ .___/
+                        /_/
+
+
+Usage: fireup [OPTIONS] [COMMAND]
+
+Commands:
+  init     Create a new MicroVM configuration `fire.toml` in the current directory
+  ps       List all Firecracker MicroVM instances
+  start    Start Firecracker MicroVM
+  stop     Stop Firecracker MicroVM
+  restart  Restart Firecracker MicroVM
+  up       Start a new Firecracker MicroVM
+  down     Stop Firecracker MicroVM
+  status   Check the status of Firecracker MicroVM
+  logs     View the logs of the Firecracker MicroVM
+  ssh      SSH into the Firecracker MicroVM
+  reset    Reset the Firecracker MicroVM
+  rm       Delete the Firecracker MicroVM
+  serve    Start fireup HTTP API server
+  inspect  Inspect the Firecracker MicroVM details
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+      --debian               Prepare Debian MicroVM
+      --alpine               Prepare Alpine MicroVM
+      --nixos                Prepare NixOS MicroVM
+      --fedora               Prepare Fedora MicroVM
+      --gentoo               Prepare Gentoo MicroVM
+      --slackware            Prepare Slackware MicroVM
+      --opensuse             Prepare OpenSUSE MicroVM
+      --opensuse-tumbleweed  Prepare OpenSUSE Tumbleweed MicroVM
+      --almalinux            Prepare AlmaLinux MicroVM
+      --rockylinux           Prepare RockyLinux MicroVM
+      --archlinux            Prepare ArchLinux MicroVM
+      --ubuntu               Prepare Ubuntu MicroVM
+      --vcpu <n>             Number of vCPUs
+      --memory <m>           Memory size in MiB
+      --vmlinux <path>       Path to the kernel image
+      --rootfs <path>        Path to the root filesystem image
+      --bridge <name>        Name of the bridge interface [default: br0]
+      --tap <name>           Name of the tap interface [default: ]
+      --mac-address <MAC>    MAC address for the network interface
+      --api-socket <path>    Path to the Firecracker API socket
+      --boot-args <ARGS>     Override boot arguments
+      --ssh-keys <SSH_KEYS>  Comma-separated list of SSH public keys to add to the VM
+  -h, --help                 Print help
+  -V, --version              Print version
+```
