@@ -13,3 +13,4 @@ libc = "0.2.174"
 owo-colors = "4.2.2"
 regex = "1.11.1"
 serde = { version = "1.0.219", features = ["serde_derive", "derive"] }
+sha2 = "0.10.9"

@@ -974,6 +974,7 @@ dependencies = [
  "owo-colors",
  "regex",
  "serde",
+ "sha2",
 ]
 
 [[package]]
