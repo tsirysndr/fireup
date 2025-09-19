@@ -39,8 +39,7 @@ sudo apt-get install fireup
 
 ## Usage
 
-```bash
-
+```
      _______           __  __
     / ____(_)_______  / / / /___
    / /_  / / ___/ _ \/ / / / __ \
@@ -69,28 +68,54 @@ Commands:
   help     Print this message or the help of the given subcommand(s)
 
 Options:
-      --debian               Prepare Debian MicroVM
-      --alpine               Prepare Alpine MicroVM
-      --nixos                Prepare NixOS MicroVM
-      --fedora               Prepare Fedora MicroVM
-      --gentoo               Prepare Gentoo MicroVM
-      --slackware            Prepare Slackware MicroVM
-      --opensuse             Prepare OpenSUSE MicroVM
-      --opensuse-tumbleweed  Prepare OpenSUSE Tumbleweed MicroVM
-      --almalinux            Prepare AlmaLinux MicroVM
-      --rockylinux           Prepare RockyLinux MicroVM
-      --archlinux            Prepare ArchLinux MicroVM
-      --ubuntu               Prepare Ubuntu MicroVM
-      --vcpu <n>             Number of vCPUs
-      --memory <m>           Memory size in MiB
-      --vmlinux <path>       Path to the kernel image
-      --rootfs <path>        Path to the root filesystem image
-      --bridge <name>        Name of the bridge interface [default: br0]
-      --tap <name>           Name of the tap interface [default: ]
-      --mac-address <MAC>    MAC address for the network interface
-      --api-socket <path>    Path to the Firecracker API socket
-      --boot-args <ARGS>     Override boot arguments
-      --ssh-keys <SSH_KEYS>  Comma-separated list of SSH public keys to add to the VM
-  -h, --help                 Print help
-  -V, --version              Print version
+      --debian
+          Prepare Debian MicroVM
+      --alpine
+          Prepare Alpine MicroVM
+      --nixos
+          Prepare NixOS MicroVM
+      --fedora
+          Prepare Fedora MicroVM
+      --gentoo
+          Prepare Gentoo MicroVM
+      --slackware
+          Prepare Slackware MicroVM
+      --opensuse
+          Prepare OpenSUSE MicroVM
+      --opensuse-tumbleweed
+          Prepare OpenSUSE Tumbleweed MicroVM
+      --almalinux
+          Prepare AlmaLinux MicroVM
+      --rockylinux
+          Prepare RockyLinux MicroVM
+      --archlinux
+          Prepare ArchLinux MicroVM
+      --ubuntu
+          Prepare Ubuntu MicroVM
+      --vcpu <n>
+          Number of vCPUs
+      --memory <m>
+          Memory size in MiB
+      --vmlinux <path>
+          Path to the kernel image
+      --rootfs <path>
+          Path to the root filesystem image
+      --bridge <name>
+          Name of the bridge interface [default: br0]
+      --tap <name>
+          Name of the tap interface [default: ]
+      --mac-address <MAC>
+          MAC address for the network interface
+      --api-socket <path>
+          Path to the Firecracker API socket
+      --boot-args <ARGS>
+          Override boot arguments
+      --ssh-keys <SSH_KEYS>
+          Comma-separated list of SSH public keys to add to the VM
+      --tailscale-auth-key <TAILSCALE_AUTH_KEY>
+          Tailscale auth key to connect the VM to a Tailscale network
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```
