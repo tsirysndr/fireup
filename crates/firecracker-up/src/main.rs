@@ -166,6 +166,20 @@ fn cli() -> Command {
                 .arg(arg!(<name> "Name or ID of the Firecracker MicroVM to inspect").required(true))
                 .about("Inspect the Firecracker MicroVM details"),
         )
+        .subcommand(
+            Command::new("exec")
+                .arg(
+                    arg!(<name> "Name of the Firecracker MicroVM to execute command in")
+                        .required(true),
+                )
+                .arg(
+                    Arg::new("args")
+                        .help("Command and arguments to execute inside the MicroVM")
+                        .required(true)
+                        .num_args(1..),
+                )
+                .about("Execute a command inside the Firecracker MicroVM"),
+        )
         .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
         .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
         .arg(arg!(--nixos "Prepare NixOS MicroVM").default_value("false"))
@@ -340,6 +354,15 @@ async fn main() -> Result<()> {
         Some(("inspect", args)) => {
             let name = args.get_one::<String>("name").cloned().unwrap();
             inspect_microvm(&name).await?;
+        }
+        Some(("exec", args)) => {
+            let name = args.get_one::<String>("name").cloned().unwrap();
+            let cmd_args: Vec<String> = args
+                .get_many::<String>("args")
+                .unwrap()
+                .map(|s| s.to_string())
+                .collect();
+            cmd::exec::exec(&name, cmd_args).await?;
         }
         _ => {
             let debian = matches.get_one::<bool>("debian").copied().unwrap_or(false);
