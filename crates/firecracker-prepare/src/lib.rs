@@ -184,7 +184,7 @@ impl RootfsPreparer for DebianPreparer {
                 &debootstrap_dir,
                 "sh",
                 "-c",
-                "apt-get install -y systemd-resolved",
+                "apt-get install -y systemd-resolved ca-certificates curl",
             ],
             true,
         )?;
@@ -447,6 +447,21 @@ impl RootfsPreparer for UbuntuPreparer {
 
         let squashfs_root_dir = format!("{}/squashfs_root", app_dir);
         rootfs::extract_squashfs(&ubuntu_file, &squashfs_root_dir)?;
+
+        run_command(
+            "cp",
+            &["-r", "/etc/ssl", &format!("{}/etc/", squashfs_root_dir)],
+            true,
+        )?;
+        run_command(
+            "cp",
+            &[
+                "-r",
+                "/etc/ca-certificates",
+                &format!("{}/etc/", squashfs_root_dir),
+            ],
+            true,
+        )?;
 
         run_command(
             "chroot",

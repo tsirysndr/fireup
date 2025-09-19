@@ -1,7 +1,7 @@
 use crate::{command::run_command, constants::BRIDGE_IP};
 use anyhow::Result;
 
-pub fn configure_guest_network(key_name: &str, guest_ip: &str) -> Result<()> {
+pub fn configure_guest_network(key_path: &str, guest_ip: &str) -> Result<()> {
     println!("[+] Configuring network in guest...");
     const MAX_RETRIES: u32 = 20;
     let mut retries = 0;
@@ -10,7 +10,7 @@ pub fn configure_guest_network(key_name: &str, guest_ip: &str) -> Result<()> {
             "ssh",
             &[
                 "-i",
-                key_name,
+                key_path,
                 "-o",
                 "StrictHostKeyChecking=no",
                 &format!("root@{}", guest_ip),

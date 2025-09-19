@@ -924,6 +924,7 @@ dependencies = [
  "actix-web",
  "anyhow",
  "env_logger",
+ "fire-config",
  "firecracker-prepare",
  "firecracker-process",
  "firecracker-state",

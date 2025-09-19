@@ -1,3 +1,4 @@
+use fire_config::TailscaleOptions;
 use firecracker_vm::{mac::generate_unique_mac, types::VmOptions};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -17,6 +18,11 @@ pub struct MicroVM {
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct StartMicroVM {
+    pub tailscale_auth_key: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct CreateMicroVM {
     pub name: Option<String>,
     pub vcpus: Option<u8>,
@@ -27,6 +33,7 @@ pub struct CreateMicroVM {
     pub boot_args: Option<String>,
     pub ssh_keys: Option<Vec<String>>,
     pub start: Option<bool>,
+    pub tailscale_auth_key: Option<String>,
 }
 
 impl Into<VmOptions> for CreateMicroVM {
@@ -110,6 +117,9 @@ impl Into<VmOptions> for CreateMicroVM {
             rootfs: self.rootfs,
             bootargs: self.boot_args,
             mac_address: generate_unique_mac(),
+            tailscale: self.tailscale_auth_key.map(|key| TailscaleOptions {
+                auth_key: Some(key),
+            }),
             ..Default::default()
         }
     }

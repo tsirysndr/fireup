@@ -17,6 +17,7 @@ pub mod mac;
 mod mosquitto;
 mod mqttc;
 mod network;
+mod tailscale;
 pub mod types;
 
 pub async fn setup(
@@ -106,6 +107,9 @@ pub async fn setup(
         let guest_ip = format!("{}.firecracker", name);
         guest::configure_guest_network(&key_name, &guest_ip)?;
     }
+
+    tailscale::setup_tailscale(&name, options)?;
+
     let pool = firecracker_state::create_connection_pool().await?;
 
     let ip_file = format!("/tmp/firecracker-{}.ip", name);
