@@ -42,8 +42,8 @@ pub fn setup_tailscale(name: &str, config: &VmOptions) -> Result<(), Error> {
             run_ssh_command(&key_path, &guest_ip, "tailscale status || true")?;
             println!("[+] Tailscale setup completed.");
             println!(
-                "[+] You can access the VM via its Tailscale domain: {}.tailscale.net",
-                name.cyan()
+                "[+] You can access the VM via its Tailscale domain: {}",
+                format!("{}.tailscale.net", name).cyan()
             );
             return Ok(());
         }
