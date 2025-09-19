@@ -31,20 +31,16 @@ pub fn setup_tailscale(name: &str, config: &VmOptions) -> Result<(), Error> {
             run_ssh_command(
                 &key_path,
                 &guest_ip,
-                &format!("tailscale up --auth-key {} --hostname {}", auth_key, name),
+                "systemctl enable tailscaled && systemctl start tailscaled || true",
             )?;
             run_ssh_command(
                 &key_path,
                 &guest_ip,
-                "systemctl enable --now tailscaled || true",
+                &format!("tailscale up --auth-key {} --hostname {}", auth_key, name),
             )?;
             run_ssh_command(&key_path, &guest_ip, "systemctl status tailscaled || true")?;
             run_ssh_command(&key_path, &guest_ip, "tailscale status || true")?;
             println!("[+] Tailscale setup completed.");
-            println!(
-                "[+] You can access the VM via its Tailscale domain: {}",
-                format!("{}.tailscale.net", name).cyan()
-            );
             return Ok(());
         }
     }
