@@ -34,21 +34,13 @@ pub async fn cp(from: &str, to: &str) -> Result<(), Error> {
     let key_path = get_private_key_path()?;
 
     let scp_args = if from.contains(':') {
-        let remote_path = format!(
-            "root@{}:{}",
-            guest_ip,
-            from.splitn(2, ':').nth(1).unwrap()
-        );
+        let remote_path = format!("root@{}:{}", guest_ip, from.splitn(2, ':').nth(1).unwrap());
         vec!["-r", remote_path.as_str(), to]
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
     } else {
-        let remote_path = format!(
-            "root@{}:{}",
-            guest_ip,
-            to.splitn(2, ':').nth(1).unwrap()
-        );
+        let remote_path = format!("root@{}:{}", guest_ip, to.splitn(2, ':').nth(1).unwrap());
         vec!["-r", from, remote_path.as_str()]
             .iter()
             .map(|s| s.to_string())
