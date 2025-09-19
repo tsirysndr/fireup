@@ -13,8 +13,11 @@
 - **Seamless VM Management**: Start, stop, and monitor Firecracker microVMs with intuitive subcommands.
 - **Network Configuration**: Automatically sets up TAP devices, IP forwarding, and NAT for connectivity.
 - **SSH Access**: Easily connect to the microVM via SSH.
+- **Tailscale Integration**: Optionally connect your microVM to a Tailscale network for secure access.
+- **Customizable Resources**: Specify CPU, memory, and other resources for your microVM.
+- **Configuration File**: Uses a `fire.toml` file for easy configuration management.
+- **API Server**: Includes an HTTP API server for programmatic control of microVMs
 - **Cross-Architecture Support**: Supports x86_64 and aarch64 with automatic detection.
-- **Robust Error Handling**: Clear error messages using anyhow for easy debugging.
 
 ## Prerequisites
 - [CoreDNS](https://coredns.io/) (for DNS resolution)
