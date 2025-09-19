@@ -21,6 +21,11 @@ pub fn configure_guest_network(key_path: &str, guest_ip: &str) -> Result<()> {
         .is_ok()
             || retries >= MAX_RETRIES
         {
+            if retries >= MAX_RETRIES {
+                println!("[-] Max retries reached. Failed to configure network in guest.");
+            } else {
+                println!("[+] Network configured in guest.");
+            }
             break;
         }
         println!("[-] Waiting for ssh to be available...");
