@@ -1,7 +1,7 @@
 use crate::{command::run_command, constants::BRIDGE_IP};
 use anyhow::Result;
 
-pub fn configure_guest_network(key_path: &str, guest_ip: &str) -> Result<()> {
+pub fn configure_guest_network(key_path: &str, guest_ip: &str, is_nixos: bool) -> Result<()> {
     println!("[+] Configuring network in guest...");
     const MAX_RETRIES: u32 = 500;
     let mut retries = 0;
@@ -16,7 +16,10 @@ pub fn configure_guest_network(key_path: &str, guest_ip: &str) -> Result<()> {
                 "-o",
                 "UserKnownHostsFile=/dev/null",
                 &format!("root@{}", guest_ip),
-                &format!("echo 'nameserver {}' > /etc/resolv.conf", BRIDGE_IP),
+                &match is_nixos {
+                    true => "uname -a".into(),
+                    false => format!("echo 'nameserver {}' > /etc/resolv.conf", BRIDGE_IP),
+                },
             ],
             false,
         )

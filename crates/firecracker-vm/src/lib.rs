@@ -103,10 +103,8 @@ pub async fn setup(
 
     firecracker::configure(&logfile, &kernel, &rootfs, &arch, &options)?;
 
-    if distro != Distro::NixOS {
-        let guest_ip = format!("{}.firecracker", name);
-        guest::configure_guest_network(&key_name, &guest_ip)?;
-    }
+    let guest_ip = format!("{}.firecracker", name);
+    guest::configure_guest_network(&key_name, &guest_ip, distro == Distro::NixOS)?;
 
     tailscale::setup_tailscale(&name, options)?;
 
