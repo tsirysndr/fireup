@@ -4,15 +4,16 @@ use firecracker_vm::{constants::BRIDGE_DEV, mac::generate_unique_mac, types::VmO
 use owo_colors::OwoColorize;
 
 use crate::cmd::{
-    down::down, init::init, inspect::inspect_microvm, logs::logs, ps::list_all_instances,
-    reset::reset, rm::remove, serve::serve, ssh::ssh, start::start, status::status, stop::stop,
-    up::up,
+    cp::cp, down::down, exec::exec, init::init, inspect::inspect_microvm, logs::logs,
+    ps::list_all_instances, reset::reset, rm::remove, serve::serve, ssh::ssh, start::start,
+    status::status, stop::stop, up::up,
 };
 
 pub mod cmd;
 pub mod command;
 pub mod config;
 pub mod date;
+pub mod ssh;
 
 fn cli() -> Command {
     let banner = format!(
@@ -179,6 +180,12 @@ fn cli() -> Command {
                         .num_args(1..),
                 )
                 .about("Execute a command inside the Firecracker MicroVM"),
+        )
+        .subcommand(
+            Command::new("cp")
+                .arg(arg!(<source> "Source file path").required(true))
+                .arg(arg!(<destination> "Destination file path").required(true))
+                .about("Copy files to/from the Firecracker MicroVM"),
         )
         .arg(arg!(--debian "Prepare Debian MicroVM").default_value("false"))
         .arg(arg!(--alpine "Prepare Alpine MicroVM").default_value("false"))
@@ -362,7 +369,12 @@ async fn main() -> Result<()> {
                 .unwrap()
                 .map(|s| s.to_string())
                 .collect();
-            cmd::exec::exec(&name, cmd_args).await?;
+            exec(&name, cmd_args).await?;
+        }
+        Some(("cp", args)) => {
+            let source = args.get_one::<String>("source").cloned().unwrap();
+            let destination = args.get_one::<String>("destination").cloned().unwrap();
+            cp(&source, &destination).await?;
         }
         _ => {
             let debian = matches.get_one::<bool>("debian").copied().unwrap_or(false);
