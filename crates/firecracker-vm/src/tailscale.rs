@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Error;
 use firecracker_prepare::command::run_command_with_stdout_inherit;
+use owo_colors::OwoColorize;
 
 use crate::types::VmOptions;
 
@@ -30,11 +31,7 @@ pub fn setup_tailscale(name: &str, config: &VmOptions) -> Result<(), Error> {
             run_ssh_command(
                 &key_path,
                 &guest_ip,
-                &format!(
-                    "tailscale up --auth-key {} --hostname {}",
-                    auth_key,
-                    guest_ip.split('.').next().unwrap()
-                ),
+                &format!("tailscale up --auth-key {} --hostname {}", auth_key, name),
             )?;
             run_ssh_command(
                 &key_path,
@@ -44,6 +41,10 @@ pub fn setup_tailscale(name: &str, config: &VmOptions) -> Result<(), Error> {
             run_ssh_command(&key_path, &guest_ip, "systemctl status tailscaled || true")?;
             run_ssh_command(&key_path, &guest_ip, "tailscale status || true")?;
             println!("[+] Tailscale setup completed.");
+            println!(
+                "[+] You can access the VM via its Tailscale domain: {}.tailscale.net",
+                name.cyan()
+            );
             return Ok(());
         }
     }
