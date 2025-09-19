@@ -13,6 +13,8 @@ pub fn configure_guest_network(key_path: &str, guest_ip: &str) -> Result<()> {
                 key_path,
                 "-o",
                 "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
                 &format!("root@{}", guest_ip),
                 &format!("echo 'nameserver {}' > /etc/resolv.conf", BRIDGE_IP),
             ],
