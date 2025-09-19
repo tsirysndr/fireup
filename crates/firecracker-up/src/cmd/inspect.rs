@@ -1,6 +1,7 @@
 use std::process;
 
 use anyhow::Error;
+use colored_json::ToColoredJson;
 use firecracker_state::repo;
 use serde_json::json;
 
@@ -36,7 +37,7 @@ pub async fn inspect_microvm(id: &str) -> Result<(), Error> {
     });
 
     let vm_json = serde_json::to_string_pretty(&vm)?;
-    println!("{}", vm_json);
+    println!("{}", vm_json.to_colored_json_auto()?);
 
     Ok(())
 }
