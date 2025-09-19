@@ -22,23 +22,40 @@ pub fn setup_tailscale(name: &str, config: &VmOptions) -> Result<(), Error> {
 
             let guest_ip = format!("{}.firecracker", name);
             run_ssh_command(&key_path, &guest_ip, "rm -f /etc/security/namespace.init")?;
+
+            if config.alpine.unwrap_or(false) {
+                run_ssh_command(&key_path, &guest_ip, "apk add openrc")?;
+            }
+
             run_ssh_command(
                 &key_path,
                 &guest_ip,
                 "type tailscaled || curl -fsSL https://tailscale.com/install.sh | sh",
             )?;
-            run_ssh_command(
-                &key_path,
-                &guest_ip,
-                "systemctl enable tailscaled && systemctl start tailscaled || true",
-            )?;
-            run_ssh_command(
-                &key_path,
-                &guest_ip,
-                &format!("tailscale up --auth-key {} --hostname {}", auth_key, name),
-            )?;
-            run_ssh_command(&key_path, &guest_ip, "systemctl status tailscaled || true")?;
+
+            if config.alpine.unwrap_or(false) {
+                run_ssh_command(
+                    &key_path,
+                    &guest_ip,
+                    &format!("tailscale up --auth-key {} --hostname {}", auth_key, name),
+                )?;
+                run_ssh_command(&key_path, &guest_ip, "rc-status")?;
+            } else {
+                run_ssh_command(
+                    &key_path,
+                    &guest_ip,
+                    "systemctl enable tailscaled && systemctl start tailscaled || true",
+                )?;
+                run_ssh_command(
+                    &key_path,
+                    &guest_ip,
+                    &format!("tailscale up --auth-key {} --hostname {}", auth_key, name),
+                )?;
+                run_ssh_command(&key_path, &guest_ip, "systemctl status tailscaled || true")?;
+            }
+
             run_ssh_command(&key_path, &guest_ip, "tailscale status || true")?;
+
             println!("[+] Tailscale setup completed.");
             return Ok(());
         }
