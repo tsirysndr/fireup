@@ -27,13 +27,28 @@ pub fn setup_tailscale(name: &str, config: &VmOptions) -> Result<(), Error> {
                 run_ssh_command(&key_path, &guest_ip, "apk add openrc")?;
             }
 
+            if config.gentoo.unwrap_or(false) {
+                run_ssh_command(&key_path, &guest_ip, "emerge --sync")?;
+                run_ssh_command(&key_path, &guest_ip, "emerge net-misc/curl")?;
+            }
+
+            if config.slackware.unwrap_or(false) {
+                // run_ssh_command(&key_path, &guest_ip, "slackpkg update")?;
+                run_ssh_command(
+                    &key_path,
+                    &guest_ip,
+                    "yes | slackpkg install nghttp2 brotli zstd libidn2 libpsl cyrus-sasl perl",
+                )?;
+                run_ssh_command(&key_path, &guest_ip, "update-ca-certificates --fresh")?;
+            }
+
             run_ssh_command(
                 &key_path,
                 &guest_ip,
                 "type tailscaled || curl -fsSL https://tailscale.com/install.sh | sh",
             )?;
 
-            if config.alpine.unwrap_or(false) {
+            if config.alpine.unwrap_or(false) || config.slackware.unwrap_or(false) {
                 run_ssh_command(
                     &key_path,
                     &guest_ip,
