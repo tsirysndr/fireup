@@ -69,6 +69,7 @@ Commands:
   serve    Start fireup HTTP API server
   inspect  Inspect the Firecracker MicroVM details
   exec     Execute a command inside the Firecracker MicroVM
+  cp       Copy files to/from the Firecracker MicroVM
   help     Print this message or the help of the given subcommand(s)
 
 Options:
