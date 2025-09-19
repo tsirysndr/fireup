@@ -3,7 +3,7 @@ use anyhow::Result;
 
 pub fn configure_guest_network(key_path: &str, guest_ip: &str) -> Result<()> {
     println!("[+] Configuring network in guest...");
-    const MAX_RETRIES: u32 = 20;
+    const MAX_RETRIES: u32 = 500;
     let mut retries = 0;
     loop {
         if run_command(
@@ -22,7 +22,10 @@ pub fn configure_guest_network(key_path: &str, guest_ip: &str) -> Result<()> {
             || retries >= MAX_RETRIES
         {
             if retries >= MAX_RETRIES {
-                println!("[-] Max retries reached. Failed to configure network in guest.");
+                println!(
+                    "[-] Max retries reached. Failed to configure network in guest. {}",
+                    guest_ip
+                );
             } else {
                 println!("[+] Network configured in guest.");
             }

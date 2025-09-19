@@ -309,6 +309,18 @@ impl RootfsPreparer for AlpinePreparer {
             ],
             true,
         )?;
+
+        run_command_with_stdout_inherit(
+            "chroot",
+            &[
+                &minirootfs,
+                "sh",
+                "-c",
+                "type curl || (apk update && apk add curl)",
+            ],
+            true,
+        )?;
+
         if !run_command("chroot", &[&minirootfs, "which", "sshd"], true)
             .map(|output| output.status.success())
             .unwrap_or(false)
