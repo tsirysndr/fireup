@@ -44,6 +44,12 @@ fn cli() -> Command {
         .subcommand(
             Command::new("start")
                 .arg(arg!(<name> "Name of the Firecracker MicroVM to start").required(true))
+                .arg(
+                    Arg::new("tailscale-auth-key")
+                        .long("tailscale-auth-key")
+                        .value_name("TAILSCALE_AUTH_KEY")
+                        .help("Tailscale auth key to connect the VM to a Tailscale network"),
+                )
                 .about("Start Firecracker MicroVM"),
         )
         .subcommand(
@@ -54,6 +60,12 @@ fn cli() -> Command {
         .subcommand(
             Command::new("restart")
                 .arg(arg!(<name> "Name of the Firecracker MicroVM to restart").required(true))
+                .arg(
+                    Arg::new("tailscale-auth-key")
+                        .long("tailscale-auth-key")
+                        .value_name("TAILSCALE_AUTH_KEY")
+                        .help("Tailscale auth key to connect the VM to a Tailscale network"),
+                )
                 .about("Restart Firecracker MicroVM"),
         )
         .subcommand(
@@ -103,6 +115,12 @@ fn cli() -> Command {
                         .long("ssh-keys")
                         .value_name("SSH_KEYS")
                         .help("Comma-separated list of SSH public keys to add to the VM"),
+                )
+                .arg(
+                    Arg::new("tailscale-auth-key")
+                        .long("tailscale-auth-key")
+                        .value_name("TAILSCALE_AUTH_KEY")
+                        .help("Tailscale auth key to connect the VM to a Tailscale network"),
                 )
                 .about("Start a new Firecracker MicroVM"),
         )
@@ -195,6 +213,12 @@ fn cli() -> Command {
                 .value_name("SSH_KEYS")
                 .help("Comma-separated list of SSH public keys to add to the VM"),
         )
+        .arg(
+            Arg::new("tailscale-auth-key")
+                .long("tailscale-auth-key")
+                .value_name("TAILSCALE_AUTH_KEY")
+                .help("Tailscale auth key to connect the VM to a Tailscale network"),
+        )
 }
 
 #[tokio::main]
@@ -218,12 +242,14 @@ async fn main() -> Result<()> {
         }
         Some(("start", args)) => {
             let name = args.get_one::<String>("name").cloned().unwrap();
-            start(&name).await?;
+            let tailscale_auth_key = args.get_one::<String>("tailscale-auth-key").cloned();
+            start(&name, tailscale_auth_key).await?;
         }
         Some(("restart", args)) => {
             let name = args.get_one::<String>("name").cloned().unwrap();
+            let tailscale_auth_key = args.get_one::<String>("tailscale-auth-key").cloned();
             stop(&name).await?;
-            start(&name).await?;
+            start(&name, tailscale_auth_key).await?;
         }
         Some(("up", args)) => {
             let vcpu = matches
@@ -250,6 +276,7 @@ async fn main() -> Result<()> {
             let ssh_keys = args
                 .get_one::<String>("ssh-keys")
                 .map(|s| s.split(',').map(|s| s.trim().to_string()).collect());
+            let tailscale_auth_key = args.get_one::<String>("tailscale-auth-key").cloned();
             let options = VmOptions {
                 debian: args.get_one::<bool>("debian").copied(),
                 alpine: args.get_one::<bool>("alpine").copied(),
@@ -274,6 +301,9 @@ async fn main() -> Result<()> {
                 mac_address,
                 etcd: None,
                 ssh_keys,
+                tailscale: tailscale_auth_key.map(|key| fire_config::TailscaleOptions {
+                    auth_key: Some(key),
+                }),
             };
             up(options).await?
         }
@@ -369,6 +399,7 @@ async fn main() -> Result<()> {
             let ssh_keys = matches
                 .get_one::<String>("ssh-keys")
                 .map(|s| s.split(',').map(|s| s.trim().to_string()).collect());
+            let tailscale_auth_key = matches.get_one::<String>("tailscale-auth-key").cloned();
 
             let options = VmOptions {
                 debian: Some(debian),
@@ -394,6 +425,9 @@ async fn main() -> Result<()> {
                 mac_address,
                 etcd: None,
                 ssh_keys,
+                tailscale: tailscale_auth_key.map(|key| fire_config::TailscaleOptions {
+                    auth_key: Some(key),
+                }),
             };
             up(options).await?
         }

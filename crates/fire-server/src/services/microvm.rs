@@ -2,6 +2,7 @@ use std::{sync::Arc, thread};
 
 use crate::types::microvm::CreateMicroVM;
 use anyhow::Error;
+use fire_config::TailscaleOptions;
 use firecracker_state::{entity::virtual_machine::VirtualMachine, repo};
 use firecracker_vm::{constants::BRIDGE_DEV, types::VmOptions};
 use owo_colors::OwoColorize;
@@ -41,7 +42,11 @@ pub async fn delete_microvm(
     Ok(Some(vm))
 }
 
-pub async fn start_microvm(pool: Arc<Pool<Sqlite>>, id: &str) -> Result<VirtualMachine, Error> {
+pub async fn start_microvm(
+    pool: Arc<Pool<Sqlite>>,
+    id: &str,
+    tailscale_auth_key: Option<String>,
+) -> Result<VirtualMachine, Error> {
     let vm = repo::virtual_machine::find(&pool, id).await?;
     if vm.is_none() {
         println!("[!] No virtual machine found with the name: {}", id);
@@ -79,6 +84,9 @@ pub async fn start_microvm(pool: Arc<Pool<Sqlite>>, id: &str) -> Result<VirtualM
         ssh_keys: vm
             .ssh_keys
             .map(|keys| keys.split(',').map(|s| s.to_string()).collect()),
+        tailscale: tailscale_auth_key.map(|key| TailscaleOptions {
+            auth_key: Some(key),
+        }),
     };
 
     let vm = start(pool, options, Some(vm.id)).await?;

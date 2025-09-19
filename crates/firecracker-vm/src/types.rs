@@ -1,4 +1,4 @@
-use fire_config::{EtcdConfig, FireConfig};
+use fire_config::{EtcdConfig, FireConfig, TailscaleOptions};
 use firecracker_prepare::Distro;
 
 use crate::constants::{BRIDGE_DEV, FC_MAC, FIRECRACKER_SOCKET};
@@ -28,6 +28,7 @@ pub struct VmOptions {
     pub mac_address: String,
     pub etcd: Option<EtcdConfig>,
     pub ssh_keys: Option<Vec<String>>,
+    pub tailscale: Option<TailscaleOptions>,
 }
 
 impl From<FireConfig> for VmOptions {
@@ -57,6 +58,7 @@ impl From<FireConfig> for VmOptions {
             mac_address: vm.mac.unwrap_or(FC_MAC.into()),
             etcd: config.etcd.clone(),
             ssh_keys: vm.ssh_keys.clone(),
+            tailscale: vm.tailscale.clone(),
         }
     }
 }

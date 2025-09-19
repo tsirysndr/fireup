@@ -1,12 +1,13 @@
 use std::process;
 
 use anyhow::Error;
+use fire_config::TailscaleOptions;
 use firecracker_state::repo;
 use firecracker_vm::types::VmOptions;
 
 use crate::cmd::up::up;
 
-pub async fn start(name: &str) -> Result<(), Error> {
+pub async fn start(name: &str, tailscale_auth_key: Option<String>) -> Result<(), Error> {
     let etcd = match fire_config::read_config() {
         Ok(config) => config.etcd,
         Err(_) => None,
@@ -46,6 +47,9 @@ pub async fn start(name: &str) -> Result<(), Error> {
         ssh_keys: vm
             .ssh_keys
             .map(|keys| keys.split(',').map(|s| s.to_string()).collect()),
+        tailscale: tailscale_auth_key.map(|key| TailscaleOptions {
+            auth_key: Some(key),
+        }),
     })
     .await?;
 

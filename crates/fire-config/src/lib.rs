@@ -14,6 +14,11 @@ pub struct EtcdConfig {
     pub cert: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TailscaleOptions {
+    pub auth_key: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Vm {
     pub vcpu: Option<u16>,
@@ -26,6 +31,7 @@ pub struct Vm {
     pub api_socket: Option<String>,
     pub mac: Option<String>,
     pub ssh_keys: Option<Vec<String>>,
+    pub tailscale: Option<TailscaleOptions>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -50,6 +56,7 @@ impl Default for FireConfig {
                 api_socket: None,
                 mac: None,
                 ssh_keys: None,
+                tailscale: None,
             },
             etcd: None,
         }

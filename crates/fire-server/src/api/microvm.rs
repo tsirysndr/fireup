@@ -46,6 +46,7 @@ async fn create_microvm(
             boot_args: None,
             ssh_keys: None,
             start: None,
+            tailscale_auth_key: None,
         },
         false => serde_json::from_slice::<CreateMicroVM>(&body)?,
     };
@@ -141,11 +142,23 @@ async fn list_microvms(
 #[post("/{id}/start")]
 async fn start_microvm(
     id: web::Path<String>,
+    mut payload: web::Payload,
     pool: web::Data<Arc<Pool<Sqlite>>>,
 ) -> Result<impl Responder, actix_web::Error> {
     let id = id.into_inner();
+    let body = read_payload!(payload);
+    let tailscale_auth_key = match body.is_empty() {
+        true => None,
+        false => {
+            let params: serde_json::Value = serde_json::from_slice(&body)?;
+            params
+                .get("tailscale_auth_key")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        }
+    };
     let pool = pool.get_ref().clone();
-    let vm = services::microvm::start_microvm(pool, &id)
+    let vm = services::microvm::start_microvm(pool, &id, tailscale_auth_key)
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
     Ok(HttpResponse::Ok().json(vm))
