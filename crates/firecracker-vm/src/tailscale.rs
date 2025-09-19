@@ -4,7 +4,6 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Error;
 use firecracker_prepare::command::run_command_with_stdout_inherit;
-use owo_colors::OwoColorize;
 
 use crate::types::VmOptions;
 
