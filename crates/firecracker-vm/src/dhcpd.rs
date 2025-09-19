@@ -58,8 +58,8 @@ pub fn setup_kea_dhcp(_config: &VmOptions) -> Result<(), Error> {
     }},
     "subnet4": [
       {{
-        "subnet": "172.16.0.0/24",
-        "pools": [ {{ "pool": "172.16.0.2 - 172.16.0.150" }} ],
+        "subnet": "172.16.0.0/16",
+        "pools": [ {{ "pool": "172.16.0.2 - 172.16.255.254" }} ],
         "option-data": [
           {{ "name": "routers", "data": "172.16.0.1" }},
           {{ "name": "domain-name-servers", "data": "172.16.0.1" }}
