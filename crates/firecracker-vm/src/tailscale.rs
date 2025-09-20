@@ -26,11 +26,6 @@ pub fn setup_tailscale(name: &str, config: &VmOptions) -> Result<(), Error> {
                 run_ssh_command(
                     &key_path,
                     &guest_ip,
-                    "type tailscale || nixos-rebuild switch",
-                )?;
-                run_ssh_command(
-                    &key_path,
-                    &guest_ip,
                     &format!("tailscale up --auth-key {} --hostname {}", auth_key, name),
                 )?;
                 run_ssh_command(&key_path, &guest_ip, "systemctl status tailscaled || true")?;
