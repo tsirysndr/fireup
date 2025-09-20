@@ -1,4 +1,4 @@
-use anyhow::{Error, Context};
+use anyhow::{Context, Error};
 use sqlx::{Pool, Sqlite};
 
 use crate::entity::drive::Drive;
@@ -55,25 +55,32 @@ pub async fn delete(pool: &Pool<Sqlite>, name: &str) -> Result<(), Error> {
     Ok(())
 }
 
-
-pub async fn update_vm_id(pool: &Pool<Sqlite>, drive_id: &str, vm_id: Option<String>) -> Result<(), Error> {
-    sqlx::query("UPDATE drives SET vm_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? OR name = ?")
-        .bind(vm_id)
-        .bind(drive_id)
-        .bind(drive_id)
-        .execute(pool)
-        .await
-        .with_context(|| format!("Failed to update vm_id for drive with id '{}'", drive_id))?;
+pub async fn update_vm_id(
+    pool: &Pool<Sqlite>,
+    drive_id: &str,
+    vm_id: Option<String>,
+) -> Result<(), Error> {
+    sqlx::query(
+        "UPDATE drives SET vm_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? OR name = ?",
+    )
+    .bind(vm_id)
+    .bind(drive_id)
+    .bind(drive_id)
+    .execute(pool)
+    .await
+    .with_context(|| format!("Failed to update vm_id for drive with id '{}'", drive_id))?;
     Ok(())
 }
 
 pub async fn update_name(pool: &Pool<Sqlite>, drive_id: &str, new_name: &str) -> Result<(), Error> {
-    sqlx::query("UPDATE drives SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? OR name = ?")
-        .bind(new_name)
-        .bind(drive_id)
-        .bind(drive_id)
-        .execute(pool)
-        .await
-        .with_context(|| format!("Failed to update name for drive with id '{}'", drive_id))?;
+    sqlx::query(
+        "UPDATE drives SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? OR name = ?",
+    )
+    .bind(new_name)
+    .bind(drive_id)
+    .bind(drive_id)
+    .execute(pool)
+    .await
+    .with_context(|| format!("Failed to update name for drive with id '{}'", drive_id))?;
     Ok(())
 }
