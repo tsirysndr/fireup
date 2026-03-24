@@ -4,6 +4,9 @@
 
 `fireup` is a tool designed to simplify the process of setting up and managing Firecracker microVMs. It automates the preparation of the necessary files, including kernel images, root filesystems, and SSH keys, to quickly get you started with [Firecracker](https://firecracker-microvm.github.io/).
 
+<a href="https://pocketenv.io/new?repo=tangled:tsiry-sandratraina.com/fireup" target="_blank"><img src="https://pocketenv.io/open-in-pocketenv.svg" alt="Open in Pocketenv" /></a>
+
+
 ![Made with VHS](https://vhs.charm.sh/vhs-10Ns1q9oGIF7P7H0ZpQyen.gif)
 
 
