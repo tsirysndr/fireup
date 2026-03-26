@@ -67,6 +67,9 @@ pub async fn create_connection_pool() -> Result<Pool<Sqlite>, Error> {
         }
     }
 
+    pool.execute(include_str!("../migrations/20250919184944_add_drives.sql"))
+        .await?;
+
     sqlx::query("PRAGMA journal_mode=WAL")
         .execute(&pool)
         .await?;

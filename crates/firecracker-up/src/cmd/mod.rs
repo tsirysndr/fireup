@@ -1,5 +1,6 @@
 pub mod cp;
 pub mod down;
+pub mod drive;
 pub mod exec;
 pub mod init;
 pub mod inspect;
