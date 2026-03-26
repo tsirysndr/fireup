@@ -90,7 +90,7 @@ pub async fn up(options: VmOptions) -> Result<(), Error> {
 pub fn check_kvm_support() -> Result<(), Error> {
     print!("[+] Checking for kvm support... ");
 
-    if !run_command("sh", &["-c", "lsmod | grep kvm"], false)
+    if !run_command("sh", &["-c", "lsmod | grep kvm || ls -l /dev/kvm"], false)
         .map(|output| output.status.success())
         .unwrap_or(false)
     {
